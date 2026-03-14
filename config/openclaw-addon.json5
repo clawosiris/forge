@@ -1,0 +1,79 @@
+// ═══════════════════════════════════════════════════════════════════════════
+// Multi-Agent Engineering Process — Addon Config (v2)
+// ═══════════════════════════════════════════════════════════════════════════
+//
+// MERGE these sections into your EXISTING openclaw.json.
+// This is NOT a standalone config — it shows only what to add/change.
+//
+// Lines marked [ADD] are new sections.
+// Lines marked [MERGE] should be merged into existing sections.
+// ═══════════════════════════════════════════════════════════════════════════
+{
+  // [MERGE] into agents.defaults
+  agents: {
+    defaults: {
+      // [ADD] if not present — model catalog for engineering agents
+      models: {
+        "anthropic/claude-opus-4-6":   { alias: "opus" },
+        "anthropic/claude-sonnet-4-6": { alias: "sonnet" },
+        "openai/gpt-5.2":             { alias: "gpt" },
+        "openai/gpt-5-mini":          { alias: "gpt-mini" },
+      },
+
+      // [ADD] sub-agent settings for engineering workflow
+      subagents: {
+        model: "anthropic/claude-sonnet-4-6",
+        maxConcurrent: 4,        // supervisor + 3 parallel specialists
+        runTimeoutSeconds: 1800,
+        archiveAfterMinutes: 120,
+      },
+
+      // [MERGE] increase if your current value is lower
+      maxConcurrent: 4,
+    },
+
+    // [MERGE] into your existing agents.list entry
+    list: [
+      {
+        id: "main",  // ← match your existing agent id
+        // [ADD] allow spawning sub-agents
+        subagents: { allowAgents: ["*"] },
+      },
+    ],
+  },
+
+  // [MERGE] into tools
+  tools: {
+    // [ADD] restrict sub-agent tools
+    subagents: {
+      tools: {
+        deny: ["gateway", "cron", "browser", "canvas", "nodes", "message"],
+      },
+    },
+
+    // [ADD] if not present
+    sessions: { visibility: "tree" },
+
+    // [MERGE] increase timeouts for long builds
+    exec: {
+      backgroundMs: 15000,
+      timeoutSec: 3600,
+      notifyOnExit: true,
+    },
+  },
+
+  // [ADD] if not present — for future automated triage
+  cron: {
+    enabled: true,
+    maxConcurrentRuns: 1,
+    sessionRetention: "48h",
+  },
+
+  // [ADD] skills the implementer agent may use
+  skills: {
+    entries: {
+      "coding-agent": { enabled: true },
+      github: { enabled: true },
+    },
+  },
+}

@@ -1,0 +1,224 @@
+// ═══════════════════════════════════════════════════════════════════════════
+// Forge — Multi-Agent Engineering Process
+// Standalone OpenClaw Configuration with Container Sandboxing
+// ═══════════════════════════════════════════════════════════════════════════
+//
+// Deploy with: ./deploy.sh
+// Or copy this to ~/.openclaw/openclaw.json and adjust placeholder values.
+// ═══════════════════════════════════════════════════════════════════════════
+{
+  // ─── Environment ───────────────────────────────────────────────────────
+  // API keys: set in shell, ~/.openclaw/.env, or uncomment here.
+  env: {
+    // ANTHROPIC_API_KEY: "sk-ant-...",
+    // OPENAI_API_KEY: "sk-...",
+  },
+
+  // ─── Gateway ───────────────────────────────────────────────────────────
+  gateway: {
+    mode: "local",
+    port: 18789,
+    bind: "loopback",
+    auth: {
+      mode: "token",
+      token: "${OPENCLAW_GATEWAY_TOKEN}",
+    },
+  },
+
+  // ─── Agents ────────────────────────────────────────────────────────────
+  agents: {
+    defaults: {
+      workspace: "~/.openclaw/workspace",
+      userTimezone: "America/New_York",  // ← adjust
+
+      models: {
+        "anthropic/claude-opus-4-6":   { alias: "opus" },
+        "anthropic/claude-sonnet-4-6": { alias: "sonnet" },
+        "openai/gpt-5.2":             { alias: "gpt" },
+        "openai/gpt-5-mini":          { alias: "gpt-mini" },
+      },
+
+      model: {
+        primary: "anthropic/claude-opus-4-6",
+        fallbacks: ["openai/gpt-5.2"],
+      },
+
+      imageModel: { primary: "anthropic/claude-sonnet-4-6" },
+      pdfModel:   { primary: "anthropic/claude-sonnet-4-6" },
+
+      subagents: {
+        model: "anthropic/claude-sonnet-4-6",
+        maxConcurrent: 4,
+        runTimeoutSeconds: 1800,
+        archiveAfterMinutes: 120,
+      },
+
+      maxConcurrent: 4,
+      timeoutSeconds: 900,
+      contextTokens: 200000,
+      thinkingDefault: "adaptive",
+
+      compaction: {
+        mode: "safeguard",
+        reserveTokensFloor: 30000,
+        memoryFlush: { enabled: true },
+      },
+
+      heartbeat: {
+        every: "30m",
+        model: "anthropic/claude-sonnet-4-6",
+        lightContext: true,
+      },
+
+      // ── Container Sandboxing ──
+      // Sub-agents run inside Docker containers for isolation.
+      sandbox: {
+        mode: "non-main",       // sandbox sub-agents, not the main agent
+        scope: "agent",         // one container per agent
+        docker: {
+          image: "openclaw-sandbox:bookworm-slim",
+          containerPrefix: "forge-sbx-",
+          workdir: "/workspace",
+          readOnlyRoot: true,
+          network: "bridge",    // sub-agents need network for git, tests
+          user: "1000:1000",
+          capDrop: ["ALL"],
+          tmpfs: ["/tmp", "/var/tmp", "/run"],
+          env: { LANG: "C.UTF-8" },
+          setupCommand: "apt-get update && apt-get install -y git curl jq build-essential python3 python3-pip",
+          pidsLimit: 256,
+          memory: "2g",
+          memorySwap: "4g",
+          cpus: 2,
+        },
+        prune: {
+          idleHours: 24,
+          maxAgeDays: 7,
+        },
+      },
+    },
+
+    list: [
+      {
+        id: "main",
+        default: true,
+        name: "Assistant",
+        workspace: "~/.openclaw/workspace",
+        model: "anthropic/claude-opus-4-6",
+        subagents: { allowAgents: ["*"] },
+        // Main agent runs on host (not sandboxed)
+        sandbox: { mode: "off" },
+      },
+    ],
+  },
+
+  // ─── Bindings ──────────────────────────────────────────────────────────
+  bindings: [
+    { agentId: "main", match: { channel: "signal" } },
+    // { agentId: "main", match: { channel: "telegram" } },
+    // { agentId: "main", match: { channel: "discord" } },
+  ],
+
+  // ─── Channels ──────────────────────────────────────────────────────────
+  channels: {
+    signal: {
+      enabled: true,
+      dmPolicy: "allowlist",
+      allowFrom: [
+        "+1XXXXXXXXXX",   // ← replace with your number
+      ],
+    },
+    // telegram: {
+    //   enabled: true,
+    //   botToken: "${TELEGRAM_BOT_TOKEN}",
+    //   dmPolicy: "allowlist",
+    //   allowFrom: ["tg:XXXXXXXXX"],
+    // },
+    // discord: {
+    //   enabled: true,
+    //   token: "${DISCORD_BOT_TOKEN}",
+    //   dmPolicy: "allowlist",
+    //   threadBindings: { enabled: true, spawnSubagentSessions: true },
+    //   guilds: {
+    //     "GUILD_ID": {
+    //       channels: {
+    //         "engineering": { allow: true, requireMention: false },
+    //       },
+    //     },
+    //   },
+    // },
+  },
+
+  // ─── Tools ─────────────────────────────────────────────────────────────
+  tools: {
+    profile: "coding",
+    sessions: { visibility: "tree" },
+
+    exec: {
+      backgroundMs: 15000,
+      timeoutSec: 3600,
+      notifyOnExit: true,
+    },
+
+    elevated: {
+      enabled: true,
+      allowFrom: {
+        signal: ["+1XXXXXXXXXX"],   // ← same as channels allowFrom
+      },
+    },
+
+    // Sub-agents: coding tools only, no control plane access
+    subagents: {
+      tools: {
+        deny: ["gateway", "cron", "browser", "canvas", "nodes", "message"],
+      },
+    },
+
+    // Sandbox tool restrictions for sandboxed sessions
+    sandbox: {
+      tools: {
+        allow: [
+          "exec", "process", "read", "write", "edit", "apply_patch",
+          "sessions_list", "sessions_history", "sessions_send",
+          "sessions_spawn", "session_status",
+          "memory_search", "memory_get",
+        ],
+        deny: ["browser", "canvas", "nodes", "cron", "gateway", "message"],
+      },
+    },
+  },
+
+  // ─── Session ───────────────────────────────────────────────────────────
+  session: {
+    reset: { mode: "idle", idleMinutes: 480 },
+    threadBindings: { enabled: true, idleHours: 48 },
+  },
+
+  // ─── Messages ──────────────────────────────────────────────────────────
+  messages: {
+    queue: { mode: "collect", debounceMs: 2000, cap: 10 },
+    inbound: { debounceMs: 3000 },
+  },
+
+  // ─── Cron ──────────────────────────────────────────────────────────────
+  cron: {
+    enabled: true,
+    maxConcurrentRuns: 1,
+    sessionRetention: "48h",
+  },
+
+  // ─── Skills ────────────────────────────────────────────────────────────
+  skills: {
+    entries: {
+      "coding-agent": { enabled: true },
+      github: { enabled: true },
+    },
+  },
+
+  // ─── Logging ───────────────────────────────────────────────────────────
+  logging: {
+    level: "info",
+    consoleLevel: "info",
+    consoleStyle: "pretty",
+  },
+}
