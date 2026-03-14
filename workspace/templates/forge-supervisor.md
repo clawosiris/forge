@@ -137,6 +137,13 @@ When uncertain, tier up.
 
 ## Spawning Specialists
 
+Agents are spawned via two runtimes depending on their role:
+
+- **Subagent runtime** — for analysis, spec writing, and chaos testing (cognitive work, no direct file I/O needed)
+- **ACP runtime** — for implementation and code review (agents that need to read/write code, run tests, interact with the repo)
+
+### Subagent Spawning (Analysis, Spec, Chaos)
+
 ```javascript
 sessions_spawn({
   runtime: "subagent",
@@ -147,19 +154,69 @@ sessions_spawn({
 })
 ```
 
+### ACP Spawning — Codex for Implementation
+
+The Implementer runs as **Codex via ACP**. Codex operates directly in the project repo, creates/edits files, runs tests, and pushes commits.
+
+```javascript
+sessions_spawn({
+  runtime: "acp",
+  agentId: "codex",
+  mode: "run",
+  task: "<implementation prompt with OpenSpec + feature branch + issue ref>",
+  cwd: "{PROJECT_ROOT}",
+  runTimeoutSeconds: 1800
+})
+```
+
+**Implementer prompt must include:**
+- The full OpenSpec document (or path to it)
+- The feature branch name to work on
+- The requirement issue number for commit message references
+- Instruction to open a draft PR early and push incremental commits
+- Instruction to run tests before marking complete
+
+### ACP Spawning — Claude Code for Code Review
+
+The PR Reviewer runs as **Claude Code via ACP in review mode**. Claude Code reads the diff, checks it against the OpenSpec, and submits a GitHub PR review.
+
+```javascript
+sessions_spawn({
+  runtime: "acp",
+  agentId: "claude-code",
+  mode: "run",
+  task: "<review prompt with OpenSpec + PR number + review instructions>",
+  cwd: "{PROJECT_ROOT}",
+  runTimeoutSeconds: 900
+})
+```
+
+**PR Reviewer prompt must include:**
+- The full OpenSpec document (or path to it)
+- The PR number to review
+- Instruction to use `gh pr diff` and `gh pr view` to examine the changes
+- Instruction to submit a GitHub PR review via `gh pr review` with either `--approve` or `--request-changes`
+- Review criteria: correctness against OpenSpec, error handling, test coverage, idiomatic code, no scope creep beyond spec
+
+**Claude Code review mode constraints:**
+- The reviewer **must not modify code**. It reads and reviews only.
+- All feedback goes through GitHub PR review comments, not file edits.
+- The review must reference specific OpenSpec sections when flagging issues.
+
 ### Agent Roster
 
-| Role | Model | Timeout | Knowledge Injected |
-|------|-------|---------|-------------------|
-| Analyst/Spec Writer | anthropic/claude-opus-4-6 | 900s | project-context + past-decisions + known-issues |
-| Spec Reviewer | anthropic/claude-sonnet-4-6 | 600s | project-context only |
-| Implementer | anthropic/claude-sonnet-4-6 | 1800s | project-context + patterns + past-decisions |
-| PR Reviewer | anthropic/claude-sonnet-4-6 | 600s | project-context only |
-| Chaos Agent (Ralph) | anthropic/claude-sonnet-4-6 | 600s | project-context + chaos-catalog |
+| Role | Runtime | Agent | Timeout | Knowledge Injected |
+|------|---------|-------|---------|-------------------|
+| Analyst/Spec Writer | subagent | claude-opus-4-6 | 900s | project-context + past-decisions + known-issues |
+| Spec Reviewer | subagent | claude-sonnet-4-6 | 600s | project-context only |
+| Implementer | **ACP (Codex)** | codex | 1800s | OpenSpec + project-context + patterns |
+| PR Reviewer | **ACP (Claude Code)** | claude-code | 900s | OpenSpec + project-context only |
+| Chaos Agent (Ralph) | subagent | claude-sonnet-4-6 | 600s | project-context + chaos-catalog |
 
 ### Knowledge Injection
 
-Read from `knowledge/` directory. Inject relevant files as context sections in the task prompt. Reviewers get MINIMAL context (project-context only) to preserve fresh perspective.
+- **Subagents:** Read from `knowledge/` directory. Inject relevant files as context sections in the task prompt. Reviewers get MINIMAL context (project-context only) to preserve fresh perspective.
+- **ACP agents (Codex, Claude Code):** Knowledge is available in the repo working directory. Point them to `spec/<feature>/openspec.md` and `knowledge/` paths. They can read files directly.
 
 ## Circuit Breakers
 
