@@ -12,10 +12,13 @@ Your OpenClaw Instance
   ├── Supervisor (Forge)          persistent sub-agent, manages pipeline
   │     ├── Analyst / Spec Writer   drafts specs from requirements
   │     ├── Spec Reviewer           validates specs, produces test criteria
-  │     ├── Implementer             writes code + tests
-  │     ├── PR Reviewer             reviews code against spec
+  │     ├── Implementer (Codex)     writes code + tests (task-spec driven)
+  │     ├── PR Reviewer             reviews code against spec (diff-based)
+  │     ├── Code Reviewer           holistic codebase quality review
   │     └── Chaos Agent (Ralph)     adversarial testing, breaks assumptions
   │
+  ├── CI/CD Pipeline Monitor       polls CI, auto-diagnoses failures
+  ├── GitHub Issue & PR Lifecycle   triage, track, close, review iterations
   └── Human approval gates at spec approval + merge
 ```
 
@@ -57,7 +60,42 @@ Not every change needs the full pipeline:
 |------|------|-------------|
 | **Small** | Bug fix, config, <50 LOC | Implementer + PR Reviewer |
 | **Medium** | Feature, refactor, 50-500 LOC | + Analyst + Spec Reviewer |
-| **Large** | New system, architecture, >500 LOC | + Chaos Agent (parallel) |
+| **Large** | New system, architecture, >500 LOC | + Chaos Agent + Code Reviewer (parallel) |
+
+## Key Features
+
+### CI/CD Pipeline Awareness (#1)
+The supervisor monitors CI after implementation, auto-diagnoses failures, and spawns targeted fixes (max 3 attempts before escalating). PR review is gated on CI green.
+
+### Code Review Agent (#2)
+Dedicated holistic code reviewer (separate from PR reviewer) that analyzes the full codebase for quality, architecture, and security — not just the diff.
+
+### Codex-First Implementation (#3)
+Implementer uses a task-spec-driven pattern: write TASK.md → Codex `--full-auto` → validate → iterate. This produces the most reliable output.
+
+### Spec-Implementation Drift Detection (#4)
+After implementation, the supervisor compares what was built against the spec and produces a `spec-delta.md` flagging scope creep and gaps.
+
+### License & Compliance (#5)
+Optional compliance stage with SPDX header enforcement, dependency auditing, and SBOM generation. Driven by `knowledge/compliance.md`.
+
+### Test Infrastructure as First-Class Artifact (#6)
+Analyst produces `test-infrastructure.md` alongside the OpenSpec. Mock servers, fixtures, and test doubles get equal review rigor.
+
+### Release Management (#7)
+Optional release stage: version bump, tag, CHANGELOG, release workflow monitoring — all tracked in `workflow-state.json`.
+
+### Cross-Repository Coordination (#8)
+Track downstream impacts across repos. Supervisor creates follow-up issues in dependent repos and coordinates sequential cross-repo work.
+
+### Formatting Pre-Commit Gate (#9)
+Implementer runs formatter → linter → tests → docs before declaring complete. Eliminates trivial CI failures.
+
+### Sandbox-Aware Test Design (#10)
+Patterns for feature-gated tests, graceful PermissionDenied skips, and cwd-relative paths for container compatibility.
+
+### GitHub Issue & PR Lifecycle (#11)
+Full lifecycle management: issue triage, label-based state tracking, PR review iteration handling, and optional cron-based monitoring.
 
 ## Requirements
 

@@ -16,6 +16,7 @@ standards. You did NOT write this code. Review it skeptically.
 - Every REQ-* has corresponding implementation?
 - No unrequested changes (scope creep)?
 - Deviations documented and justified?
+- If `spec-delta.md` exists, verify drift items have been resolved or approved
 
 ### Code Quality
 - Readable, follows project conventions?
