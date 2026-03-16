@@ -34,6 +34,36 @@ Read `workflow-state.json` at session start. If it doesn't exist, initialize:
 
 Update this file after EVERY state transition. This is your crash recovery mechanism.
 
+Extended state fields for CI and GitHub tracking:
+```json
+{
+  "version": 2,
+  "activeWorkflow": {
+    "state": "ci-monitoring",
+    "ci": {
+      "lastRunId": "12345",
+      "status": "failure",
+      "fixAttempts": 1,
+      "maxFixAttempts": 3
+    },
+    "github": {
+      "issueNumber": 42,
+      "specPrNumber": 43,
+      "implPrNumber": 44,
+      "prState": "open",
+      "reviewStatus": "changes_requested",
+      "reviewIterations": 1,
+      "ciStatus": "success"
+    },
+    "release": {
+      "version": null,
+      "tag": null,
+      "releaseRunId": null
+    }
+  }
+}
+```
+
 ## GitHub-Native Workflow
 
 All workflow steps are tracked through **GitHub Issues and Pull Requests**. Specifications use the **OpenSpec** format. The repo's issue tracker and PR review process are the single source of truth for workflow state — not just internal files.
@@ -70,10 +100,13 @@ The OpenSpec is the **contract between analysis and implementation**. The Implem
 
 ```
 idle → issue-created → analyzing → spec-pr ⟲ (max 3) → awaiting-spec-approval
-  → implementing → pr-review ⟲ (max 3) → awaiting-merge-approval → complete
+  → implementing → ci-monitoring ⟲ (max 3) → spec-drift-check → pr-review ⟲ (max 3)
+  → awaiting-merge-approval → release (optional) → complete
 ```
 
 For large tier: implementing + chaos-testing run in parallel.
+CI monitoring runs after implementation and before PR review.
+Spec drift check runs once after CI is green.
 
 ### Transitions
 
@@ -89,13 +122,48 @@ For large tier: implementing + chaos-testing run in parallel.
 
 **awaiting-spec-approval → implementing:** Human merges the spec PR. Supervisor creates a new branch `feature/<feature>` and spawns Implementer with the merged OpenSpec as input. If large tier, spawn Chaos Agent in parallel. Implementer opens a **draft PR** early and pushes commits as work progresses.
 
-**implementing → pr-review:** Implementer marks PR as **"Ready for Review"**. If Chaos Agent ran, its findings are posted as a PR comment with label `chaos-report`. Spawn PR Reviewer to review the implementation PR against the OpenSpec.
+**implementing → ci-monitoring:** Implementer marks PR as **"Ready for Review"**. Supervisor polls CI status using `gh run list --branch <branch>` and `gh run view <id> --log-failed`. If CI fails:
+- Extract failure logs and identify root cause
+- For trivial fixes (formatting, missing imports): spawn Implementer with targeted fix instructions
+- For test failures: spawn Implementer with error context
+- Max 3 CI fix attempts before escalating to human
+- Update `workflow-state.json` with CI status after each attempt
+
+**ci-monitoring → spec-drift-check:** CI is green. Supervisor compares what was built against the OpenSpec:
+- Items implemented but not in spec (scope creep or organic evolution)
+- Items in spec but not implemented (gaps)
+- Produce a `spec-delta.md` artifact in `spec/<feature>/`
+- If significant drift: comment on the PR and notify human for decision (update spec or revert)
+- If no drift or minor: proceed to review
+
+**spec-drift-check → pr-review:** Drift resolved (or none). If Chaos Agent ran, its findings are posted as a PR comment with label `chaos-report`. Spawn PR Reviewer to review the implementation PR against the OpenSpec.
 
 **pr-review → implementing (REVISE):** PR Reviewer submits **"Request Changes"** with specific feedback referencing OpenSpec sections. If iterations < 3, re-spawn Implementer to address review. If at max, escalate to human.
 
 **pr-review → awaiting-merge-approval:** PR Reviewer submits **"Approve"**. Supervisor adds label `awaiting-merge` to the issue and comments with a summary for the human. Human merges the implementation PR to signal approval.
 
-**awaiting-merge-approval → complete:** Human merges the implementation PR. Supervisor closes the requirement issue with a completion summary, archives to history, updates knowledge files, commits final journal entry, and notifies parent.
+**awaiting-merge-approval → release (optional):** Human merges the implementation PR. If the workflow includes a release stage:
+- Verify release checklist: CI green, CHANGELOG updated, version bumped
+- Tag the release: `git tag v<version>` and push
+- Monitor release workflow if one exists (`gh run list --workflow release`)
+- Update `workflow-state.json` with release version and tag
+
+**release → complete** (or **awaiting-merge-approval → complete** if no release):
+Supervisor closes the requirement issue with a completion summary, archives to history, updates knowledge files, commits final journal entry, and notifies parent.
+
+### PR Review Iteration Lifecycle
+
+When a PR is in review and the reviewer requests changes:
+
+1. Supervisor reads the review comments from the PR
+2. Spawns Implementer with specific review feedback as context
+3. Implementer pushes fixes to the same branch
+4. Supervisor re-requests review
+5. Track iteration count in `workflow-state.json`
+
+```
+pr-review → addressing-review-comments → pr-review ⟲ (max 3) → awaiting-merge-approval
+```
 
 ### Issue Labels
 
@@ -108,8 +176,11 @@ The supervisor manages these labels on the requirement issue to track state:
 | `spec-review` | OpenSpec PR under review |
 | `awaiting-approval` | Spec ready, waiting for human |
 | `implementing` | Code being written |
+| `ci-monitoring` | Waiting for CI green (may include fix iterations) |
 | `pr-review` | Implementation PR under review |
+| `addressing-review` | Implementer fixing PR review feedback |
 | `awaiting-merge` | Implementation ready, waiting for human |
+| `releasing` | Release tagging and verification in progress |
 | `completed` | Done |
 
 ### Branch Strategy
@@ -211,12 +282,52 @@ sessions_spawn({
 | Spec Reviewer | subagent | claude-sonnet-4-6 | 600s | project-context only |
 | Implementer | **ACP (Codex)** | codex | 1800s | OpenSpec + project-context + patterns |
 | PR Reviewer | **ACP (Claude Code)** | claude-code | 900s | OpenSpec + project-context only |
+| Code Reviewer | **ACP (Claude Code)** | claude-code | 900s | Full codebase access, project-context |
 | Chaos Agent (Ralph) | subagent | claude-sonnet-4-6 | 600s | project-context + chaos-catalog |
 
 ### Knowledge Injection
 
 - **Subagents:** Read from `knowledge/` directory. Inject relevant files as context sections in the task prompt. Reviewers get MINIMAL context (project-context only) to preserve fresh perspective.
 - **ACP agents (Codex, Claude Code):** Knowledge is available in the repo working directory. Point them to `spec/<feature>/openspec.md` and `knowledge/` paths. They can read files directly.
+
+## License & Compliance
+
+When a project has compliance requirements (license headers, SPDX, dependency audits):
+
+1. Check for `knowledge/compliance.md` — if it exists, inject into Implementer context
+2. Implementer must apply SPDX headers to all new files per the compliance policy
+3. Add compliance verification to the CI monitoring stage (e.g., verify headers, run `cargo deny`)
+4. If no compliance policy exists but the project has a LICENSE file, note the license in project-context
+
+## Test Infrastructure
+
+Test infrastructure (mock servers, fixtures, test doubles) is a first-class artifact:
+
+1. Analyst should produce `spec/<feature>/test-infrastructure.md` alongside the OpenSpec when non-trivial test infrastructure is needed:
+   - Mock servers or test doubles required
+   - Fixture data requirements
+   - CI pipeline requirements (feature flags, services, etc.)
+   - Cross-language validation needs
+2. Implementer treats test infrastructure with equal priority to feature code
+3. Test infrastructure changes get the same review rigor as production code
+
+## Cross-Repository Coordination
+
+When work spans multiple repositories:
+
+1. Track downstream impacts in `workflow-state.json`:
+   ```json
+   {
+     "crossRepo": {
+       "downstream": [
+         {"repo": "org/other-repo", "impact": "needs updated mock server binary", "prNumber": null}
+       ]
+     }
+   }
+   ```
+2. Supervisor creates issues in downstream repos for required follow-up work
+3. Implementer can work across repos in sequence (specify `cwd` per spawn)
+4. Add `downstream-impact.md` to spec format when cross-repo changes are anticipated
 
 ## Circuit Breakers
 
