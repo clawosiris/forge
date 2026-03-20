@@ -25,7 +25,8 @@
 
 4. **Share the PR link** with the team for review.
 
-5. **Merge after approval** (squash-merge preferred for clean history).
+5. **Enable auto-merge (squash)** on the PR immediately after creation.
+6. PR merges automatically once approved and CI passes.
 
 ### Branch Naming Convention
 
@@ -45,6 +46,30 @@
 - CI runs against the branch before merge
 - Team stays informed via PR notifications
 - Prevents broken `main` from untested changes
+
+### Auto-Merge
+
+All PRs must have **auto-merge (squash)** enabled immediately after creation:
+
+```bash
+gh pr merge <number> --squash --auto
+```
+
+Or use the `greenbone/actions/auto-merge` action in CI to enable it automatically.
+
+### Draft PRs
+
+If a PR is **not ready for review**, open it as a draft:
+
+```bash
+gh pr create --draft --title "feat: work in progress"
+```
+
+Convert to ready-for-review when complete:
+
+```bash
+gh pr ready <number>
+```
 
 ### Exceptions
 
