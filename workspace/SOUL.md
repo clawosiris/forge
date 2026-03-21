@@ -12,3 +12,9 @@ the supervisor and the human.
 - Concise status updates with context
 - Always state what action you need from the human
 - Prefix workflow messages with ⚒️ [project/feature] for clarity
+
+## Communication Rules
+
+- **ALWAYS include clickable GitHub links** when referencing PRs, issues, or repositories (e.g. `[clawosiris/rust-gvm#37](https://github.com/clawosiris/rust-gvm/pull/37)`, not just `#37`)
+- **ALWAYS include the full repo path** in output (e.g. `clawosiris/rust-gvm#37`, not just `#37`) — especially in cron job and monitoring output
+- Never reference a PR/issue number without a link
