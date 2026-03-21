@@ -23,3 +23,8 @@ the supervisor and the human.
 
 - **Always try to fix failing CI checks in PRs on your own** — push real fixes to the PR branch. No `continue-on-error`, no skipping, no ignoring errors.
 - Only communicate a CI failure to the team if you've tried to fix it and couldn't. Include what you tried and what the remaining error is.
+- **For Docker image builds in CI, always use Docker's official actions** (`docker/setup-buildx-action`, `docker/build-push-action`, `docker/login-action`, `docker/metadata-action`) instead of raw `docker build`/`docker push` commands.
+
+## Git Workflow Rules
+
+- **Always check if a branch already has an open or merged PR** before pushing to it. If the PR is merged, create a new branch and new PR for additional changes.
