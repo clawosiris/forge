@@ -27,4 +27,4 @@ the supervisor and the human.
 
 ## Git Workflow Rules
 
-- **Always check if a branch already has an open or merged PR** before pushing to it. If the PR is merged, create a new branch and new PR for additional changes.
+- **Always check if the branch you push to already has an open PR.** If not (e.g. PR was already merged or none exists), create a new branch and open a new PR.
