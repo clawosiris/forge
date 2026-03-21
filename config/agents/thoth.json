@@ -1,0 +1,54 @@
+{
+  "id": "thoth",
+  "workspace": "/home/clawd/.openclaw/workspace-thoth",
+  "model": "anthropic/claude-opus-4-6",
+  "tools": {
+    "elevated": {
+      "enabled": false
+    },
+    "fs": {
+      "workspaceOnly": true
+    },
+    "exec": {
+      "security": "allowlist",
+      "safeBins": [
+        "head",
+        "tail",
+        "grep",
+        "sed",
+        "awk",
+        "sort",
+        "uniq",
+        "wc",
+        "tr",
+        "cut",
+        "ls",
+        "find",
+        "mkdir",
+        "cp",
+        "mv",
+        "rm",
+        "basename",
+        "dirname",
+        "xargs",
+        "touch",
+        "chmod",
+        "git",
+        "gh",
+        "jq",
+        "curl",
+        "codex",
+        "date",
+        "sleep",
+        "pgrep",
+        "echo",
+        "printf",
+        "tee",
+        "mktemp",
+        "realpath",
+        "test"
+      ]
+    }
+  },
+  "_comment": "Group-bound agent for Osiris-Thoth Signal group. Hardened with exec allowlist and workspace confinement."
+}
