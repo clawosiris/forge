@@ -102,8 +102,29 @@ The following capabilities remain unaffected:
 
 4. **No container isolation** — These are process-level restrictions, not full sandboxing. Container sandbox (rolled back due to upstream issues) would provide stronger isolation.
 
+## Temporary Files Convention
+
+Agents should use `/var/tmp` instead of `/tmp` for cloning repos and long-running work:
+
+| Directory | Backing | Persistence | Use Case |
+|-----------|---------|-------------|----------|
+| `/tmp` | tmpfs (RAM) | Cleared on reboot | Small, short-lived files |
+| `/var/tmp` | Disk | Survives reboot | Large repos, long-running work |
+
+```bash
+# Good - disk-backed
+cd /var/tmp && git clone ...
+WORK_DIR=$(mktemp -d -p /var/tmp)
+
+# Avoid for large repos - eats RAM
+cd /tmp && git clone ...
+```
+
+This convention is documented in each agent's AGENTS.md.
+
 ## Audit History
 
 - 2026-03-21 15:37 — Initial security audit identified credential exposure
 - 2026-03-21 15:38 — Applied exec allowlist to thoth, dev-grnbn, clawdev
 - 2026-03-21 15:42 — Added fs.workspaceOnly, removed cat from safeBins
+- 2026-03-21 17:00 — Added /var/tmp convention for disk-backed temp files
