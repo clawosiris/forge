@@ -7,22 +7,47 @@
 //
 // Lines marked [ADD] are new sections.
 // Lines marked [MERGE] should be merged into existing sections.
+//
+// SECRETS: Run `openclaw secrets configure` to set up SecretRef providers.
+// See docs/security/secrets-management.md for details.
 // ═══════════════════════════════════════════════════════════════════════════
 {
+  // [ADD] if not present — secrets provider config
+  // Secrets are resolved at runtime, NOT exposed to agent context.
+  secrets: {
+    providers: {
+      local: {
+        source: "file",
+        path: "~/.openclaw/secrets.json",
+        mode: "json",
+      },
+      env: {
+        source: "env",
+      },
+    },
+  },
+
   // [MERGE] into agents.defaults
   agents: {
     defaults: {
       // [ADD] if not present — model catalog for engineering agents
       models: {
-        "anthropic/claude-opus-4-6":   { alias: "opus" },
-        "anthropic/claude-sonnet-4-6": { alias: "sonnet" },
-        "openai/gpt-5.2":             { alias: "gpt" },
-        "openai/gpt-5-mini":          { alias: "gpt-mini" },
+        "anthropic/claude-opus-4-5":   { alias: "opus" },
+        "anthropic/claude-opus-4-6":   { alias: "opus46" },
+        "anthropic/claude-sonnet-4":   { alias: "sonnet" },
+        "anthropic/claude-haiku-4-5":  { alias: "haiku" },
+        "openai/gpt-5.3":              { alias: "gpt" },
+        "openai/gpt-5-mini":           { alias: "gpt-mini" },
       },
+
+      // [ADD] thinking level — adaptive scales with task complexity
+      // Options: "off" | "low" | "medium" | "high" | "adaptive"
+      // Adaptive: quick on routine messages, deep on architecture/reviews
+      thinkingDefault: "adaptive",
 
       // [ADD] sub-agent settings for engineering workflow
       subagents: {
-        model: "anthropic/claude-sonnet-4-6",
+        model: "anthropic/claude-sonnet-4",
         maxConcurrent: 4,        // supervisor + 3 parallel specialists
         runTimeoutSeconds: 1800,
         archiveAfterMinutes: 120,
@@ -36,6 +61,10 @@
     list: [
       {
         id: "main",  // ← match your existing agent id
+        // [ADD] thinking level at agent level
+        params: {
+          thinkingDefault: "adaptive",
+        },
         // [ADD] allow spawning sub-agents
         subagents: { allowAgents: ["*"] },
       },
@@ -51,6 +80,37 @@
       },
     },
 
+    // [ADD] sandbox exec restrictions with safe bins for coding
+    sandbox: {
+      tools: {
+        allow: [
+          "exec", "process", "read", "write", "edit", "apply_patch",
+          "sessions_list", "sessions_history", "sessions_send",
+          "sessions_spawn", "session_status",
+          "memory_search", "memory_get",
+        ],
+        deny: ["browser", "canvas", "nodes", "cron", "gateway", "message"],
+      },
+      exec: {
+        security: "allowlist",
+        safeBins: [
+          // Text processing
+          "head", "tail", "grep", "sed", "awk", "sort", "uniq", "wc", "tr", "cut",
+          // File operations
+          "ls", "find", "mkdir", "cp", "mv", "rm", "basename", "dirname", "xargs",
+          "touch", "chmod", "cat", "tee",
+          // Development tools
+          "git", "gh", "jq", "curl",
+          // Build tools
+          "make", "cargo", "rustc", "python3", "pip", "node", "npm", "npx",
+          // Utilities
+          "date", "sleep", "echo", "printf", "mktemp", "realpath", "test", "which",
+          // Coding agents
+          "codex",
+        ],
+      },
+    },
+
     // [ADD] if not present
     sessions: { visibility: "tree" },
 
@@ -59,6 +119,18 @@
       backgroundMs: 15000,
       timeoutSec: 3600,
       notifyOnExit: true,
+    },
+  },
+
+  // [ADD] ACP for spawning coding agents
+  acp: {
+    enabled: true,
+    backend: "acpx",
+    defaultAgent: "codex",
+    allowedAgents: ["codex", "claude", "pi", "opencode", "gemini"],
+    maxConcurrentSessions: 4,
+    runtime: {
+      ttlMinutes: 120,
     },
   },
 

@@ -7,11 +7,37 @@
 // Or copy this to ~/.openclaw/openclaw.json and adjust placeholder values.
 // ═══════════════════════════════════════════════════════════════════════════
 {
+  // ─── Secrets ─────────────────────────────────────────────────────────────
+  // Secrets are resolved at runtime and NOT exposed to agent context.
+  // Use SecretRef syntax: { "$secret": "provider:key" } or { "$secret": "key" }
+  // Run `openclaw secrets configure` for interactive setup.
+  // Run `openclaw secrets audit` to find plaintext secrets.
+  secrets: {
+    providers: {
+      // File-based secrets (default)
+      local: {
+        source: "file",
+        path: "~/.openclaw/secrets.json",
+        mode: "json",
+      },
+      // Environment variables (fallback)
+      env: {
+        source: "env",
+      },
+      // 1Password (optional — uncomment if using)
+      // op: {
+      //   source: "1password",
+      //   account: "my.1password.com",
+      //   vault: "OpenClaw",
+      // },
+    },
+  },
+
   // ─── Environment ───────────────────────────────────────────────────────
-  // API keys: set in shell, ~/.openclaw/.env, or uncomment here.
+  // Prefer secrets.providers over env for sensitive values.
+  // These are for non-sensitive runtime settings only.
   env: {
-    // ANTHROPIC_API_KEY: "sk-ant-...",
-    // OPENAI_API_KEY: "sk-...",
+    // NODE_ENV: "production",
   },
 
   // ─── Gateway ───────────────────────────────────────────────────────────
@@ -21,7 +47,8 @@
     bind: "loopback",
     auth: {
       mode: "token",
-      token: "${OPENCLAW_GATEWAY_TOKEN}",
+      // SecretRef: resolved at runtime, not exposed to agents
+      token: { "$secret": "local:GATEWAY_AUTH_TOKEN" },
     },
   },
 
@@ -32,22 +59,24 @@
       userTimezone: "America/New_York",  // ← adjust
 
       models: {
-        "anthropic/claude-opus-4-6":   { alias: "opus" },
-        "anthropic/claude-sonnet-4-6": { alias: "sonnet" },
-        "openai/gpt-5.2":             { alias: "gpt" },
-        "openai/gpt-5-mini":          { alias: "gpt-mini" },
+        "anthropic/claude-opus-4-5":   { alias: "opus" },
+        "anthropic/claude-opus-4-6":   { alias: "opus46" },
+        "anthropic/claude-sonnet-4":   { alias: "sonnet" },
+        "anthropic/claude-haiku-4-5":  { alias: "haiku" },
+        "openai/gpt-5.3":              { alias: "gpt" },
+        "openai/gpt-5-mini":           { alias: "gpt-mini" },
       },
 
       model: {
-        primary: "anthropic/claude-opus-4-6",
-        fallbacks: ["openai/gpt-5.2"],
+        primary: "anthropic/claude-opus-4-5",
+        fallbacks: ["openai/gpt-5.3"],
       },
 
-      imageModel: { primary: "anthropic/claude-sonnet-4-6" },
-      pdfModel:   { primary: "anthropic/claude-sonnet-4-6" },
+      imageModel: { primary: "anthropic/claude-sonnet-4" },
+      pdfModel:   { primary: "anthropic/claude-sonnet-4" },
 
       subagents: {
-        model: "anthropic/claude-sonnet-4-6",
+        model: "anthropic/claude-sonnet-4",
         maxConcurrent: 4,
         runTimeoutSeconds: 1800,
         archiveAfterMinutes: 120,
@@ -56,6 +85,11 @@
       maxConcurrent: 4,
       timeoutSeconds: 900,
       contextTokens: 200000,
+
+      // ── Thinking ──
+      // Adaptive scales reasoning depth based on task complexity.
+      // Quick responses for routine messages, deeper analysis for architecture/reviews.
+      // Options: "off" | "low" | "medium" | "high" | "adaptive"
       thinkingDefault: "adaptive",
 
       compaction: {
@@ -66,7 +100,7 @@
 
       heartbeat: {
         every: "30m",
-        model: "anthropic/claude-sonnet-4-6",
+        model: "anthropic/claude-haiku-4-5",
         lightContext: true,
       },
 
@@ -85,7 +119,7 @@
           capDrop: ["ALL"],
           tmpfs: ["/tmp", "/var/tmp", "/run"],
           env: { LANG: "C.UTF-8" },
-          setupCommand: "apt-get update && apt-get install -y git curl jq build-essential python3 python3-pip",
+          setupCommand: "apt-get update && apt-get install -y git curl jq build-essential python3 python3-pip nodejs npm",
           pidsLimit: 256,
           memory: "2g",
           memorySwap: "4g",
@@ -104,7 +138,10 @@
         default: true,
         name: "Assistant",
         workspace: "~/.openclaw/workspace",
-        model: "anthropic/claude-opus-4-6",
+        model: "anthropic/claude-opus-4-5",
+        params: {
+          thinkingDefault: "adaptive",
+        },
         subagents: { allowAgents: ["*"] },
         // Main agent runs on host (not sandboxed)
         sandbox: { mode: "off" },
@@ -155,9 +192,17 @@
     sessions: { visibility: "tree" },
 
     exec: {
+      security: "full",        // "full" for main agent, "allowlist" for sandboxed
+      ask: "off",
       backgroundMs: 15000,
       timeoutSec: 3600,
       notifyOnExit: true,
+      safeBinTrustedDirs: [
+        "/usr/local/bin",
+        "/usr/bin",
+        "~/.local/bin",
+        "~/.npm-global/bin",
+      ],
     },
 
     elevated: {
@@ -185,6 +230,25 @@
         ],
         deny: ["browser", "canvas", "nodes", "cron", "gateway", "message"],
       },
+      // Sandboxed agents use allowlist exec with safe bins
+      exec: {
+        security: "allowlist",
+        safeBins: [
+          // Text processing
+          "head", "tail", "grep", "sed", "awk", "sort", "uniq", "wc", "tr", "cut",
+          // File operations
+          "ls", "find", "mkdir", "cp", "mv", "rm", "basename", "dirname", "xargs",
+          "touch", "chmod", "cat", "tee",
+          // Development tools
+          "git", "gh", "jq", "curl",
+          // Build tools
+          "make", "cargo", "rustc", "python3", "pip", "node", "npm", "npx",
+          // Utilities
+          "date", "sleep", "echo", "printf", "mktemp", "realpath", "test", "which",
+          // Coding agents
+          "codex",
+        ],
+      },
     },
   },
 
@@ -205,6 +269,34 @@
     enabled: true,
     maxConcurrentRuns: 1,
     sessionRetention: "48h",
+    // Scheduled jobs — add via `cron` tool or CLI
+    // Example: temp file cleanup (files older than 3 days)
+    // jobs: [{
+    //   name: "tmp-cleanup",
+    //   schedule: { kind: "cron", expr: "0 4 * * *" },  // 4 AM daily
+    //   payload: {
+    //     kind: "agentTurn",
+    //     message: "Clean up temp files: find ~/.openclaw/workspace/tmp -type f -mtime +3 -delete && find ~/.openclaw/workspace/tmp -type d -empty -delete"
+    //   },
+    //   sessionTarget: "isolated",
+    // }],
+  },
+
+  // ─── ACP (Agent Communication Protocol) ────────────────────────────────
+  // Enable ACP for spawning coding agents via sessions_spawn
+  acp: {
+    enabled: true,
+    backend: "acpx",
+    defaultAgent: "codex",
+    allowedAgents: ["codex", "claude", "pi", "opencode", "gemini"],
+    maxConcurrentSessions: 4,
+    stream: {
+      coalesceIdleMs: 300,
+      maxChunkChars: 1200,
+    },
+    runtime: {
+      ttlMinutes: 120,
+    },
   },
 
   // ─── Skills ────────────────────────────────────────────────────────────

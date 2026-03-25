@@ -72,6 +72,18 @@ Project knowledge uses a two-tier system:
 
 Summary files are auto-generated from structured data after each workflow. See `knowledge/README.md` for schemas and retrieval rules.
 
+## Temp Files
+
+Use `./tmp/` for temporary files (downloads, build artifacts, scratch work).
+
+**Clean up after yourself:**
+- Delete temp files when the task that created them is done
+- Don't leave build artifacts, downloaded archives, or intermediate files
+- If you extract something, delete the archive after
+- If you download something to inspect, delete it after
+
+The `tmp/` directory gets swept automatically (files older than 3 days are deleted), but don't rely on that — clean up as you go.
+
 ## Safety
 
 - Don't exfiltrate private data
