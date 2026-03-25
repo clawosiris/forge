@@ -1,0 +1,57 @@
+{
+  secrets: {
+    providers: {
+      container: {
+        source: "file",
+        path: "/run/secrets",
+        mode: "dir",
+      },
+      env: {
+        source: "env",
+      },
+    },
+  },
+
+  gateway: {
+    mode: "local",
+    port: 18800,
+    bind: "0.0.0.0",
+    auth: {
+      mode: "token",
+      token: { "$secret": "container:GATEWAY_AUTH_TOKEN" },
+    },
+  },
+
+  agents: {
+    defaults: {
+      workspace: "/home/openclaw/.openclaw/workspace",
+      userTimezone: "America/New_York",
+      model: {
+        primary: "anthropic/claude-opus-4-5",
+        fallbacks: ["openai/gpt-5.3"],
+      },
+      thinkingDefault: "adaptive",
+    },
+    list: [
+      {
+        id: "main",
+        default: true,
+        name: "Forge Instance",
+        workspace: "/home/openclaw/.openclaw/workspace",
+        model: "anthropic/claude-opus-4-5",
+      },
+    ],
+  },
+
+  tools: {
+    profile: "coding",
+    sessions: { visibility: "tree" },
+    exec: {
+      security: "full",
+      ask: "off",
+      backgroundMs: 15000,
+      timeoutSec: 3600,
+      notifyOnExit: true,
+    },
+  },
+}

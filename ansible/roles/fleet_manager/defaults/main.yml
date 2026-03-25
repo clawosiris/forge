@@ -1,0 +1,17 @@
+---
+fleet_manager_user: openclaw
+fleet_manager_port: 18799
+fleet_manager_image: localhost/openclaw-fleet-manager:latest
+forge_instance_image: localhost/openclaw-forge:latest
+forge_port_range_start: 18800
+forge_port_range_end: 18899
+fleet_manager_model: "anthropic/claude-opus-4-5"
+fleet_manager_thinking: "adaptive"
+fleet_manager_network: forge-fleet
+fleet_manager_container_name: fleet-manager
+fleet_manager_state_volume: fleet-manager-state
+fleet_manager_repo_root: "{{ playbook_dir | dirname }}"
+fleet_manager_podman_socket: "/run/user/{{ ansible_facts.user_uid }}/podman/podman.sock"
+fleet_manager_remote_root: "/home/{{ fleet_manager_user }}/forge-fleet-manager"
+fleet_manager_quadlet_dir: "/home/{{ fleet_manager_user }}/.config/containers/systemd"
+fleet_manager_config_dir: "/home/{{ fleet_manager_user }}/.config/fleet-manager"

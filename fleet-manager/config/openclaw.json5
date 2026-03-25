@@ -1,0 +1,68 @@
+{
+  env: {
+    CONTAINER_HOST: "unix:///run/podman/podman.sock",
+  },
+
+  gateway: {
+    mode: "local",
+    port: 18799,
+    bind: "0.0.0.0",
+    auth: {
+      mode: "token",
+      token: "${OPENCLAW_GATEWAY_TOKEN}",
+    },
+  },
+
+  agents: {
+    defaults: {
+      workspace: "/home/openclaw/.openclaw/workspace",
+      userTimezone: "America/New_York",
+      models: {
+        "anthropic/claude-opus-4-5": { alias: "opus" },
+        "anthropic/claude-sonnet-4": { alias: "sonnet" },
+      },
+      model: {
+        primary: "anthropic/claude-opus-4-5",
+      },
+      thinkingDefault: "adaptive",
+      maxConcurrent: 2,
+      timeoutSeconds: 1800,
+    },
+    list: [
+      {
+        id: "fleet-manager",
+        default: true,
+        name: "Fleet Manager",
+        workspace: "/home/openclaw/.openclaw/workspace",
+        model: "anthropic/claude-opus-4-5",
+        params: {
+          thinkingDefault: "adaptive",
+        },
+      },
+    ],
+  },
+
+  tools: {
+    profile: "coding",
+    exec: {
+      security: "full",
+      ask: "off",
+      timeoutSec: 3600,
+      backgroundMs: 15000,
+      notifyOnExit: true,
+    },
+  },
+
+  skills: {
+    entries: {
+      "fleet-manager": {
+        enabled: true,
+        path: "/home/openclaw/.openclaw/workspace/skills/fleet-manager",
+      },
+    },
+  },
+
+  session: {
+    reset: { mode: "idle", idleMinutes: 480 },
+  },
+}

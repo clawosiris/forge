@@ -1,0 +1,23 @@
+[Unit]
+Description=Forge Fleet Manager
+After=network-online.target podman.socket
+Wants=network-online.target
+
+[Container]
+ContainerName={{ fleet_manager_container_name }}
+Image={{ fleet_manager_image }}
+Network={{ fleet_manager_network }}
+PublishPort=127.0.0.1:{{ fleet_manager_port }}:{{ fleet_manager_port }}
+Volume={{ fleet_manager_podman_socket }}:/run/podman/podman.sock:ro
+Volume={{ fleet_manager_remote_root }}:{{ fleet_manager_repo_root }}:ro
+Volume={{ fleet_manager_state_volume }}:/home/openclaw/.fleet-manager
+Secret=anthropic-api-key,target=ANTHROPIC_API_KEY
+Secret=openai-api-key,target=OPENAI_API_KEY
+Secret=gateway-token,target=GATEWAY_AUTH_TOKEN
+Environment=FLEET_REPO_ROOT={{ fleet_manager_repo_root }}
+
+[Service]
+Restart=always
+
+[Install]
+WantedBy=default.target

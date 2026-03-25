@@ -1,0 +1,7 @@
+---
+fleet_manager_container_context_src: "{{ fleet_manager_repo_root }}/fleet-manager/containers/fleet-manager"
+forge_instance_container_context_src: "{{ fleet_manager_repo_root }}/fleet-manager/containers/forge-instance"
+fleet_manager_container_context_dest: "{{ fleet_manager_remote_root }}/fleet-manager/containers/fleet-manager"
+forge_instance_container_context_dest: "{{ fleet_manager_remote_root }}/fleet-manager/containers/forge-instance"
+fleet_manager_openclaw_config_path: "{{ fleet_manager_config_dir }}/openclaw.json5"
+fleet_manager_quadlet_path: "{{ fleet_manager_quadlet_dir }}/fleet-manager.container"

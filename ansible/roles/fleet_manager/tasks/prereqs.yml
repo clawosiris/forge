@@ -1,0 +1,35 @@
+---
+- name: Install podman
+  become: true
+  ansible.builtin.package:
+    name: podman
+    state: present
+
+- name: Ensure remote root exists
+  ansible.builtin.file:
+    path: "{{ fleet_manager_remote_root }}"
+    state: directory
+    mode: "0755"
+
+- name: Ensure config directory exists
+  ansible.builtin.file:
+    path: "{{ fleet_manager_config_dir }}"
+    state: directory
+    mode: "0700"
+
+- name: Ensure quadlet directory exists
+  ansible.builtin.file:
+    path: "{{ fleet_manager_quadlet_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: Enable lingering for fleet manager user
+  become: true
+  ansible.builtin.command: "loginctl enable-linger {{ fleet_manager_user }}"
+  changed_when: false
+
+- name: Enable podman socket for user
+  ansible.builtin.command: systemctl --user enable --now podman.socket
+  environment:
+    XDG_RUNTIME_DIR: "/run/user/{{ ansible_facts.user_uid }}"
+  changed_when: false

@@ -1,0 +1,23 @@
+services:
+  fleet-manager:
+    container_name: fleet-manager
+    build:
+      context: ..
+      dockerfile: fleet-manager/Dockerfile
+    image: forge-fleet-manager:latest
+    restart: unless-stopped
+    environment:
+      CONTAINER_HOST: unix:///run/podman/podman.sock
+      FLEET_MANAGER_HOST_STATE_DIR: ${FLEET_MANAGER_HOST_STATE_DIR:-${HOME}/.fleet-manager}
+      OPENCLAW_CONFIG: /home/openclaw/.openclaw/openclaw.json5
+    ports:
+      - "18799:18799"
+    volumes:
+      - /run/user/1000/podman/podman.sock:/run/podman/podman.sock
+      - ${HOME}/.fleet-manager:/home/openclaw/.openclaw:Z
+    networks:
+      - forge-fleet
+
+networks:
+  forge-fleet:
+    external: true
