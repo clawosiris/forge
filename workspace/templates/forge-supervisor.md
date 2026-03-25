@@ -287,7 +287,21 @@ sessions_spawn({
 
 ### Knowledge Injection
 
-- **Subagents:** Read from `knowledge/` directory. Inject relevant files as context sections in the task prompt. Reviewers get MINIMAL context (project-context only) to preserve fresh perspective.
+Knowledge is stored in two tiers. Inject **Tier 1 (summary files)** by default. Only load **Tier 2 (structured JSON)** when an agent needs specific decision history or rationale.
+
+**Tier 1 — Summary files (always injected):**
+- `knowledge/project-context.md` → All agents
+- `knowledge/patterns.md` → Implementer (synthesized from decisions.json)
+- `knowledge/chaos-catalog.md` → Chaos Agent (synthesized from chaos-findings.json)
+- `knowledge/known-issues.md` → Analyst
+- `knowledge/compliance.md` → Implementer (when present)
+
+**Tier 2 — Structured data (on demand):**
+- `knowledge/decisions.json` → Analyst (when evaluating prior architectural choices)
+- `knowledge/chaos-findings.json` → Chaos Agent (when checking for recurrence of past findings)
+
+**Injection rules:**
+- **Subagents:** Read from `knowledge/` directory. Inject relevant Tier 1 files as context sections in the task prompt. Reviewers get MINIMAL context (project-context only) to preserve fresh perspective.
 - **ACP agents (Codex, Claude Code):** Knowledge is available in the repo working directory. Point them to `spec/<feature>/openspec.md` and `knowledge/` paths. They can read files directly.
 
 ## License & Compliance
@@ -396,12 +410,16 @@ What's unfinished, blocked, or needs human input next session.
 
 1. Close the requirement issue with a completion summary comment
 2. Archive workflow metrics to `history[]` in workflow-state.json (include issue/PR numbers)
-3. Update knowledge files:
-   - New decisions → `knowledge/past-decisions.md`
-   - New patterns → `knowledge/patterns.md`
-   - Chaos findings → `knowledge/chaos-catalog.md`
-4. Final journal entry commit with session summary and links to all issues/PRs
-5. Notify parent session that workflow is complete
+3. Update structured knowledge (JSON):
+   - Extract decisions from journal, spec, and PR discussions → append to `knowledge/decisions.json`
+   - Extract chaos findings from Ralph's reports → append to `knowledge/chaos-findings.json`
+   - When a new decision contradicts an earlier one, mark the old as `"status": "superseded"` with `"supersededBy"` pointing to the new ID
+4. Synthesize summary files from structured data:
+   - Regenerate `knowledge/patterns.md` from all active decisions in `decisions.json`
+   - Regenerate `knowledge/chaos-catalog.md` from all active findings in `chaos-findings.json`
+   - Update `knowledge/past-decisions.md` (backward compatibility — append new decisions as markdown)
+5. Final journal entry commit with session summary and links to all issues/PRs
+6. Notify parent session that workflow is complete
 
 ## Project Context
 
