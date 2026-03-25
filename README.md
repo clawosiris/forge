@@ -54,7 +54,7 @@ cd forge
 | `workspace/knowledge/` | Project knowledge directory (populate per-project) |
 | `skills/fleet-manager/` | Fleet provisioning skill, scripts, schema, and instance template |
 | `docs/deployment-plan.md` | Full architecture documentation |
-| `docs/fleet-manager.md` | Fleet Manager usage and operational notes |
+| `docs/fleet-manager.md` | Fleet Manager overview and pointers to the containerized deployment docs |
 
 ## Workflow Tiers
 
@@ -111,6 +111,25 @@ Full lifecycle management: issue triage, label-based state tracking, PR review i
 ## Documentation
 
 See [`docs/deployment-plan.md`](docs/deployment-plan.md) for the full architecture, state machine, failure handling, and observability details.
+
+## Fleet Manager
+
+Forge now includes a container-oriented Fleet Manager package in [`fleet-manager/`](fleet-manager). It runs as its own OpenClaw instance, mounts the host rootless Podman socket, and provisions Forge instances as sibling containers on a shared `forge-fleet` network.
+
+Core pieces:
+
+- `fleet-manager/Dockerfile` builds the manager image
+- `fleet-manager/forge-instance/Dockerfile` builds the image used for each managed Forge instance
+- `fleet-manager/docker-compose.yml` wires the Podman socket, persistent state, and port `18799`
+- `fleet-manager/workspace/skills/fleet-manager/` contains the lifecycle skill, state schema, and provisioning scripts
+- `docs/fleet-manager/` documents architecture and operations
+
+Quick start:
+
+```bash
+cd fleet-manager
+./deploy.sh
+```
 
 Fleet operations are documented in [`docs/fleet-manager.md`](docs/fleet-manager.md).
 

@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forge.clawosiris.dev/schemas/fleet-manager/instances.schema.json",
+  "title": "Fleet Manager Instance State",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["instances", "nextPort", "portRange"],
+  "properties": {
+    "instances": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "container",
+          "port",
+          "volume",
+          "status",
+          "model",
+          "channel",
+          "createdAt",
+          "lastActivity"
+        ],
+        "properties": {
+          "container": { "type": "string", "pattern": "^forge-[a-z0-9-]+$" },
+          "port": { "type": "integer", "minimum": 18800, "maximum": 18899 },
+          "volume": { "type": "string", "pattern": "^forge-[a-z0-9-]+-data$" },
+          "status": { "type": "string", "enum": ["running", "stopped", "archived"] },
+          "model": { "type": "string", "enum": ["opus", "sonnet"] },
+          "channel": { "type": "string", "enum": ["signal", "telegram", "discord", "none"] },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "lastActivity": { "type": "string", "format": "date-time" }
+        }
+      }
+    },
+    "nextPort": { "type": "integer", "minimum": 18800, "maximum": 18899 },
+    "portRange": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["start", "end"],
+      "properties": {
+        "start": { "type": "integer", "const": 18800 },
+        "end": { "type": "integer", "const": 18899 }
+      }
+    }
+  }
+}
