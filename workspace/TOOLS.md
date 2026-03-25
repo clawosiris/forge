@@ -69,3 +69,31 @@ codex
 ```
 
 Add project-specific tools to `tools.sandbox.exec.safeBins` in config.
+
+## Secrets Management
+
+Secrets are handled via **SecretRef** — resolved at runtime, never exposed to agents.
+
+```bash
+# Audit for plaintext secrets
+openclaw secrets audit
+
+# Interactive setup
+openclaw secrets configure
+
+# Reload without restart
+openclaw secrets reload
+```
+
+**SecretRef syntax:**
+```json5
+token: { "$secret": "local:GATEWAY_AUTH_TOKEN" }
+apiKey: { "$secret": "op:OpenClaw/Anthropic/api-key" }
+```
+
+See `docs/security/secrets-management.md` for full details.
+
+**Key principle:** Sandboxed agents cannot access secrets because:
+1. `tools.fs.workspaceOnly: true` — no access to `~/.openclaw/`
+2. `tools.exec.security: "allowlist"` — can't run arbitrary commands
+3. Secrets resolved by gateway, not injected into agent context

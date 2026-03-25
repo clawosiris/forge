@@ -7,8 +7,26 @@
 //
 // Lines marked [ADD] are new sections.
 // Lines marked [MERGE] should be merged into existing sections.
+//
+// SECRETS: Run `openclaw secrets configure` to set up SecretRef providers.
+// See docs/security/secrets-management.md for details.
 // ═══════════════════════════════════════════════════════════════════════════
 {
+  // [ADD] if not present — secrets provider config
+  // Secrets are resolved at runtime, NOT exposed to agent context.
+  secrets: {
+    providers: {
+      local: {
+        source: "file",
+        path: "~/.openclaw/secrets.json",
+        mode: "json",
+      },
+      env: {
+        source: "env",
+      },
+    },
+  },
+
   // [MERGE] into agents.defaults
   agents: {
     defaults: {

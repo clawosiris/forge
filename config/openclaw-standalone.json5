@@ -7,11 +7,37 @@
 // Or copy this to ~/.openclaw/openclaw.json and adjust placeholder values.
 // ═══════════════════════════════════════════════════════════════════════════
 {
+  // ─── Secrets ─────────────────────────────────────────────────────────────
+  // Secrets are resolved at runtime and NOT exposed to agent context.
+  // Use SecretRef syntax: { "$secret": "provider:key" } or { "$secret": "key" }
+  // Run `openclaw secrets configure` for interactive setup.
+  // Run `openclaw secrets audit` to find plaintext secrets.
+  secrets: {
+    providers: {
+      // File-based secrets (default)
+      local: {
+        source: "file",
+        path: "~/.openclaw/secrets.json",
+        mode: "json",
+      },
+      // Environment variables (fallback)
+      env: {
+        source: "env",
+      },
+      // 1Password (optional — uncomment if using)
+      // op: {
+      //   source: "1password",
+      //   account: "my.1password.com",
+      //   vault: "OpenClaw",
+      // },
+    },
+  },
+
   // ─── Environment ───────────────────────────────────────────────────────
-  // API keys: set in shell, ~/.openclaw/.env, or uncomment here.
+  // Prefer secrets.providers over env for sensitive values.
+  // These are for non-sensitive runtime settings only.
   env: {
-    // ANTHROPIC_API_KEY: "sk-ant-...",
-    // OPENAI_API_KEY: "sk-...",
+    // NODE_ENV: "production",
   },
 
   // ─── Gateway ───────────────────────────────────────────────────────────
@@ -21,7 +47,8 @@
     bind: "loopback",
     auth: {
       mode: "token",
-      token: "${OPENCLAW_GATEWAY_TOKEN}",
+      // SecretRef: resolved at runtime, not exposed to agents
+      token: { "$secret": "local:GATEWAY_AUTH_TOKEN" },
     },
   },
 
