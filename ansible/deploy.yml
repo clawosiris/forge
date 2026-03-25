@@ -1,0 +1,6 @@
+---
+- name: Deploy Forge Fleet Manager
+  hosts: all
+  gather_facts: true
+  roles:
+    - role: fleet_manager

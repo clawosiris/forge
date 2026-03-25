@@ -1,0 +1,26 @@
+---
+- name: Copy fleet manager container context
+  ansible.builtin.copy:
+    src: "{{ fleet_manager_container_context_src }}/"
+    dest: "{{ fleet_manager_container_context_dest }}/"
+    mode: preserve
+
+- name: Copy forge instance container context
+  ansible.builtin.copy:
+    src: "{{ forge_instance_container_context_src }}/"
+    dest: "{{ forge_instance_container_context_dest }}/"
+    mode: preserve
+
+- name: Build fleet manager image
+  containers.podman.podman_image:
+    name: "{{ fleet_manager_image }}"
+    path: "{{ fleet_manager_container_context_dest }}"
+    build:
+      format: docker
+
+- name: Build forge instance image
+  containers.podman.podman_image:
+    name: "{{ forge_instance_image }}"
+    path: "{{ forge_instance_container_context_dest }}"
+    build:
+      format: docker

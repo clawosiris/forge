@@ -1,0 +1,4 @@
+---
+vault_anthropic_api_key: "sk-ant-..."
+vault_openai_api_key: "sk-proj-..."
+vault_gateway_token: "replace-me"

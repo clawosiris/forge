@@ -1,138 +1,74 @@
 # Forge — Multi-Agent Engineering Process for OpenClaw
 
-A structured, multi-agent software development workflow that separates cognitive concerns: creative agents write specs and code, critical agents review them, and adversarial agents break assumptions.
+A structured, multi-agent software development workflow that now ships with a container-native Fleet Manager for running multiple Forge instances as sibling Podman containers.
 
-Fleet Manager Phase 1 is also included: a host-level operational skill for provisioning and managing multiple Forge instances on a single machine.
+## Fleet Manager Architecture
 
-## Architecture
-
+```text
+Host Machine
+│
+├── /run/user/1000/podman/podman.sock
+│         │
+│         ▼
+│  ┌──────────────────────────────────────────────────────┐
+│  │ Fleet Manager Container (:18799)                     │
+│  │ - OpenClaw + fleet-manager skill                     │
+│  │ - Podman socket mounted                              │
+│  │ - Runs `podman` to manage siblings                   │
+│  └──────────────────────┬───────────────────────────────┘
+│                         │
+│         ┌───────────────┼───────────────┐
+│         ▼               ▼               ▼
+│  ┌──────────┐    ┌──────────┐    ┌──────────┐
+│  │ Forge A  │    │ Forge B  │    │ Forge C  │
+│  │ :18801   │    │ :18802   │    │ :18803   │
+│  └──────────┘    └──────────┘    └──────────┘
 ```
-Your OpenClaw Instance
-  │
-  │ "start engineering workflow for project-x: add user auth"
-  │
-  ├── Supervisor (Forge)          persistent sub-agent, manages pipeline
-  │     ├── Analyst / Spec Writer   drafts specs from requirements
-  │     ├── Spec Reviewer           validates specs, produces test criteria
-  │     ├── Implementer (Codex)     writes code + tests (task-spec driven)
-  │     ├── PR Reviewer             reviews code against spec (diff-based)
-  │     ├── Code Reviewer           holistic codebase quality review
-  │     └── Chaos Agent (Ralph)     adversarial testing, breaks assumptions
-  │
-  ├── CI/CD Pipeline Monitor       polls CI, auto-diagnoses failures
-  ├── GitHub Issue & PR Lifecycle   triage, track, close, review iterations
-  └── Human approval gates at spec approval + merge
-```
 
-The supervisor runs as a **persistent sub-agent session** — your main OpenClaw agent stays general-purpose and spawns workflow supervisors on demand. Multiple workflows can run in parallel.
+The old Unix-user-per-instance model is gone. Fleet Manager is now a rootless Podman container that provisions Forge instances as sibling containers, with credentials delivered through Podman secrets and persistent data stored in named volumes.
 
 ## Quick Start
 
 ```bash
-# Clone
 git clone https://github.com/clawosiris/forge.git
 cd forge
-
-# Deploy (new standalone instance with container sandboxing)
 ./deploy.sh
-
-# Or add to an existing instance
-./deploy.sh --addon
 ```
 
-## What's Included
+`deploy.sh` now:
+- validates `podman`, `podman.socket`, and `systemd --user`
+- prompts for API keys and gateway token if they are not exported
+- creates Podman secrets
+- builds the `fleet-manager` and `forge-instance` images
+- creates the `forge-fleet` network
+- starts the Fleet Manager container on `127.0.0.1:18799`
 
-| File | Purpose |
-|------|---------|
-| `deploy.sh` | Deployment script with container sandboxing setup |
-| `config/openclaw-standalone.json5` | Complete config for a fresh instance |
-| `config/openclaw-addon.json5` | Merge guide for existing instances |
-| `workspace/AGENTS.md` | Main agent instructions (includes workflow routing) |
-| `workspace/SOUL.md` | Main agent persona |
-| `workspace/templates/forge-supervisor.md` | Supervisor spawn template |
-| `workspace/templates/agents/` | Specialist agent prompt templates |
-| `workspace/knowledge/` | Project knowledge directory (populate per-project) |
-| `skills/fleet-manager/` | Fleet provisioning skill, scripts, schema, and instance template |
-| `docs/deployment-plan.md` | Full architecture documentation |
-| `docs/fleet-manager.md` | Fleet Manager overview and pointers to the containerized deployment docs |
+## Repo Layout
 
-## Workflow Tiers
+- `fleet-manager/containers/` contains the build contexts for the Fleet Manager and Forge instance images
+- `skills/fleet-manager/` contains the provisioning, teardown, and status scripts used inside the manager container
+- `ansible/` contains a rootless Podman deployment role using a quadlet
+- `docs/fleet-manager.md` documents runtime operations and state
 
-Not every change needs the full pipeline:
+## Operations
 
-| Tier | When | Agents Used |
-|------|------|-------------|
-| **Small** | Bug fix, config, <50 LOC | Implementer + PR Reviewer |
-| **Medium** | Feature, refactor, 50-500 LOC | + Analyst + Spec Reviewer |
-| **Large** | New system, architecture, >500 LOC | + Chaos Agent + Code Reviewer (parallel) |
-
-## Key Features
-
-### CI/CD Pipeline Awareness (#1)
-The supervisor monitors CI after implementation, auto-diagnoses failures, and spawns targeted fixes (max 3 attempts before escalating). PR review is gated on CI green.
-
-### Code Review Agent (#2)
-Dedicated holistic code reviewer (separate from PR reviewer) that analyzes the full codebase for quality, architecture, and security — not just the diff.
-
-### Codex-First Implementation (#3)
-Implementer uses a task-spec-driven pattern: write TASK.md → Codex `--full-auto` → validate → iterate. This produces the most reliable output.
-
-### Spec-Implementation Drift Detection (#4)
-After implementation, the supervisor compares what was built against the spec and produces a `spec-delta.md` flagging scope creep and gaps.
-
-### License & Compliance (#5)
-Optional compliance stage with SPDX header enforcement, dependency auditing, and SBOM generation. Driven by `knowledge/compliance.md`.
-
-### Test Infrastructure as First-Class Artifact (#6)
-Analyst produces `test-infrastructure.md` alongside the OpenSpec. Mock servers, fixtures, and test doubles get equal review rigor.
-
-### Release Management (#7)
-Optional release stage: version bump, tag, CHANGELOG, release workflow monitoring — all tracked in `workflow-state.json`.
-
-### Cross-Repository Coordination (#8)
-Track downstream impacts across repos. Supervisor creates follow-up issues in dependent repos and coordinates sequential cross-repo work.
-
-### Formatting Pre-Commit Gate (#9)
-Implementer runs formatter → linter → tests → docs before declaring complete. Eliminates trivial CI failures.
-
-### Sandbox-Aware Test Design (#10)
-Patterns for feature-gated tests, graceful PermissionDenied skips, and cwd-relative paths for container compatibility.
-
-### GitHub Issue & PR Lifecycle (#11)
-Full lifecycle management: issue triage, label-based state tracking, PR review iteration handling, and optional cron-based monitoring.
-
-## Requirements
-
-- [OpenClaw](https://github.com/openclaw/openclaw) installed
-- Docker (for container sandboxing)
-- API keys: Anthropic (primary), OpenAI (fallback)
-- At least one messaging channel configured (Signal, Discord, Telegram, etc.)
-
-## Documentation
-
-See [`docs/deployment-plan.md`](docs/deployment-plan.md) for the full architecture, state machine, failure handling, and observability details.
-
-## Fleet Manager
-
-Forge now includes a container-oriented Fleet Manager package in [`fleet-manager/`](fleet-manager). It runs as its own OpenClaw instance, mounts the host rootless Podman socket, and provisions Forge instances as sibling containers on a shared `forge-fleet` network.
-
-Core pieces:
-
-- `fleet-manager/Dockerfile` builds the manager image
-- `fleet-manager/forge-instance/Dockerfile` builds the image used for each managed Forge instance
-- `fleet-manager/docker-compose.yml` wires the Podman socket, persistent state, and port `18799`
-- `fleet-manager/workspace/skills/fleet-manager/` contains the lifecycle skill, state schema, and provisioning scripts
-- `docs/fleet-manager/` documents architecture and operations
-
-Quick start:
+Provision, inspect, and destroy Forge instances with the Fleet Manager skill:
 
 ```bash
-cd fleet-manager
-./deploy.sh
+skills/fleet-manager/scripts/provision.sh client-a
+skills/fleet-manager/scripts/status.sh
+skills/fleet-manager/scripts/teardown.sh --archive client-a
 ```
 
-Fleet operations are documented in [`docs/fleet-manager.md`](docs/fleet-manager.md).
+## Ansible
 
-## License
+Use the included role when you want repeatable remote deployment instead of the local `deploy.sh` flow:
 
-MIT
+```bash
+cd ansible
+ansible-galaxy collection install -r requirements.yml
+ansible-vault encrypt vault.yml
+ansible-playbook -i inventory/hosts.yml deploy.yml --ask-vault-pass
+```
+
+More detail is in [`docs/fleet-manager.md`](docs/fleet-manager.md) and [`ansible/README.md`](ansible/README.md).

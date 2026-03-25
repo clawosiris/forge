@@ -1,7 +1,3 @@
-// ═══════════════════════════════════════════════════════════════════════════
-// Forge managed container instance
-// Rendered by skills/fleet-manager/scripts/provision.sh
-// ═══════════════════════════════════════════════════════════════════════════
 {
   secrets: {
     providers: {
@@ -18,7 +14,7 @@
 
   gateway: {
     mode: "local",
-    port: ${PORT},
+    port: 18799,
     bind: "0.0.0.0",
     auth: {
       mode: "token",
@@ -51,7 +47,7 @@
       {
         id: "main",
         default: true,
-        name: "Forge ${INSTANCE_NAME}",
+        name: "Fleet Manager",
         workspace: "/home/openclaw/.openclaw/workspace",
         model: "anthropic/claude-opus-4-5",
         params: {
@@ -105,6 +101,7 @@
     entries: {
       "coding-agent": { enabled: true },
       github: { enabled: true },
+      "fleet-manager": { enabled: true },
     },
   },
 

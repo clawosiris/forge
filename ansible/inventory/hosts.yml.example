@@ -1,0 +1,6 @@
+---
+all:
+  hosts:
+    fleet-host:
+      ansible_host: fleet.example.com
+      ansible_user: openclaw
