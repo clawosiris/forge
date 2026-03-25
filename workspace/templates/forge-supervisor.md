@@ -104,7 +104,7 @@ idle → issue-created → analyzing → spec-pr ⟲ (max 3) → awaiting-spec-a
   → awaiting-merge-approval → release (optional) → complete
 ```
 
-For large tier: implementing + chaos-testing run in parallel.
+For large tier: implementing + chaos-testing + security audit run in parallel.
 CI monitoring runs after implementation and before PR review.
 Spec drift check runs once after CI is green.
 
@@ -120,7 +120,7 @@ Spec drift check runs once after CI is green.
 
 **spec-pr → awaiting-spec-approval:** Reviewer submits **"Approve"** on the spec PR. Supervisor adds label `awaiting-approval` to the issue and comments with a summary for the human. Human merges the spec PR to signal approval (or comments to request revisions).
 
-**awaiting-spec-approval → implementing:** Human merges the spec PR. Supervisor creates a new branch `feature/<feature>` and spawns Implementer with the merged OpenSpec as input. If large tier, spawn Chaos Agent in parallel. Implementer opens a **draft PR** early and pushes commits as work progresses.
+**awaiting-spec-approval → implementing:** Human merges the spec PR. Supervisor creates a new branch `feature/<feature>` and spawns Implementer with the merged OpenSpec as input. If large tier, spawn Chaos Agent and Security Auditor in parallel. If medium tier with `compliance.md` present or human request, spawn Security Auditor. Implementer opens a **draft PR** early and pushes commits as work progresses.
 
 **implementing → ci-monitoring:** Implementer marks PR as **"Ready for Review"**. Supervisor polls CI status using `gh run list --branch <branch>` and `gh run view <id> --log-failed`. If CI fails:
 - Extract failure logs and identify root cause
@@ -136,7 +136,7 @@ Spec drift check runs once after CI is green.
 - If significant drift: comment on the PR and notify human for decision (update spec or revert)
 - If no drift or minor: proceed to review
 
-**spec-drift-check → pr-review:** Drift resolved (or none). If Chaos Agent ran, its findings are posted as a PR comment with label `chaos-report`. Spawn PR Reviewer to review the implementation PR against the OpenSpec.
+**spec-drift-check → pr-review:** Drift resolved (or none). If Chaos Agent ran, its findings are posted as a PR comment with label `chaos-report`. If Security Auditor ran, its findings are posted as a PR comment with label `security-audit`. For HIGH/CRITICAL security findings, notify the parent session with ⚠️ prefix so the human is aware before the merge decision. Spawn PR Reviewer to review the implementation PR against the OpenSpec.
 
 **pr-review → implementing (REVISE):** PR Reviewer submits **"Request Changes"** with specific feedback referencing OpenSpec sections. If iterations < 3, re-spawn Implementer to address review. If at max, escalate to human.
 
@@ -201,8 +201,8 @@ main
 
 Determine at workflow start:
 - **Small** (bug fix, config, <50 LOC): Implementer + PR Reviewer only. Skip analysis.
-- **Medium** (feature, refactor, 50-500 LOC): Analyst + Reviewer + Implementer + PR Reviewer.
-- **Large** (new system, architecture, >500 LOC): All 5 agents, parallel implementation + chaos.
+- **Medium** (feature, refactor, 50-500 LOC): Analyst + Reviewer + Implementer + PR Reviewer. Security Auditor optional (triggered by `compliance.md` presence or human request).
+- **Large** (new system, architecture, >500 LOC): All agents including Security Auditor + Chaos Agent in parallel during implementation.
 
 When uncertain, tier up.
 
@@ -210,7 +210,7 @@ When uncertain, tier up.
 
 Agents are spawned via two runtimes depending on their role:
 
-- **Subagent runtime** — for analysis, spec writing, and chaos testing (cognitive work, no direct file I/O needed)
+- **Subagent runtime** — for analysis, spec writing, chaos testing, and security auditing (cognitive work, no direct file I/O needed)
 - **ACP runtime** — for implementation and code review (agents that need to read/write code, run tests, interact with the repo)
 
 ### Subagent Spawning (Analysis, Spec, Chaos)
@@ -224,6 +224,24 @@ sessions_spawn({
   task: "<agent prompt with context injected>"
 })
 ```
+
+### Subagent Spawning — Security Auditor
+
+The Security Auditor runs as a subagent during implementation (parallel with Chaos Agent for large tier). It reviews the implementation PR diff for attack surface changes.
+
+**Security Auditor prompt must include:**
+- The `templates/agents/security-auditor.md` template with context injected
+- The PR number and branch name (so it can reference the diff)
+- `knowledge/project-context.md` content
+- `knowledge/compliance.md` content (if present)
+- `knowledge/chaos-catalog.md` content (for historical context)
+- Instruction to post findings as a PR comment tagged `**[Security Auditor]**`
+- Instruction to use `gh pr comment` to post the report
+
+**When Security Auditor completes:**
+- If findings include HIGH/CRITICAL severity: notify parent session with `⚠️ SECURITY:` prefix
+- Post all findings as a PR comment regardless of severity
+- Findings are **informational only** — they do not block the pipeline
 
 ### ACP Spawning — Codex for Implementation
 
@@ -284,6 +302,7 @@ sessions_spawn({
 | PR Reviewer | **ACP (Claude Code)** | claude-code | 900s | OpenSpec + project-context only |
 | Code Reviewer | **ACP (Claude Code)** | claude-code | 900s | Full codebase access, project-context |
 | Chaos Agent (Ralph) | subagent | claude-sonnet-4-6 | 600s | project-context + chaos-catalog |
+| Security Auditor | subagent | claude-sonnet-4-6 | 600s | project-context + compliance + chaos-catalog |
 
 ### Knowledge Injection
 
