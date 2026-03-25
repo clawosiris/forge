@@ -31,6 +31,16 @@ The most reliable Codex output comes from single-file task specs with explicit v
 
 **Anti-pattern:** Giving Codex broad instructions without a written spec leads to scope creep and inconsistent results.
 
+## SBOM Quality Gating (Lessons Learned)
+
+When adding SBOMs to release/nightly workflows:
+
+- Prefer **cargo-native SBOM generation** (`cargo-cyclonedx`) for accurate dependency graphs.
+- Add a **post-processing step** for CycloneDX JSON to inject missing document metadata (CC0 license, build lifecycle, supplier hints).
+- Add a **quality gate** (`sbomqs score`) with a conservative initial threshold (≥7.0), then ratchet upward.
+- Ensure SBOM collection excludes test fixtures (`*/fixtures/*`) so the gate doesn't fail on minimal stub SBOMs.
+- Upload the scoring output (e.g., `sbomqs-results.json`) as an artifact for debugging regressions.
+
 ## Pre-Commit Validation
 
 Always run the full validation chain before declaring implementation complete:
