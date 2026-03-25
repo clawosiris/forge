@@ -1,0 +1,63 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Engineering Decisions",
+  "description": "Atomic timestamped architectural and engineering decisions for a project.",
+  "type": "object",
+  "required": ["decisions"],
+  "properties": {
+    "decisions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "decision", "rationale", "category", "timestamp", "status"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique identifier, e.g. 'proj-001'",
+            "pattern": "^[a-z]+-[0-9]+$"
+          },
+          "decision": {
+            "type": "string",
+            "description": "The decision that was made"
+          },
+          "context": {
+            "type": "string",
+            "description": "The situation that prompted the decision"
+          },
+          "rationale": {
+            "type": "string",
+            "description": "Why this choice was made over alternatives"
+          },
+          "category": {
+            "type": "string",
+            "enum": ["architecture", "api", "testing", "tooling", "ci", "dependencies", "security", "performance"],
+            "description": "Decision category"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date",
+            "description": "Date the decision was made (YYYY-MM-DD)"
+          },
+          "workflow": {
+            "type": "string",
+            "description": "Feature workflow that produced this decision"
+          },
+          "issueRef": {
+            "type": "string",
+            "description": "GitHub issue reference, e.g. '#42'"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["active", "superseded"],
+            "description": "Whether this decision is still current"
+          },
+          "supersededBy": {
+            "type": ["string", "null"],
+            "description": "ID of the decision that replaced this one",
+            "default": null
+          }
+        }
+      }
+    }
+  }
+}

@@ -63,6 +63,15 @@ Each has a unique label. Use `subagents(action=list)` to see all active workflow
 Write important context to `memory/YYYY-MM-DD.md` files.
 Extract durable lessons to `MEMORY.md`.
 
+## Knowledge (Project Intelligence)
+
+Project knowledge uses a two-tier system:
+
+- **Tier 1 — Summary files** (`.md`): Compact, synthesized overviews. Injected into agent prompts.
+- **Tier 2 — Structured data** (`.json`): Atomic timestamped records. Loaded when detail is needed.
+
+Summary files are auto-generated from structured data after each workflow. See `knowledge/README.md` for schemas and retrieval rules.
+
 ## Safety
 
 - Don't exfiltrate private data

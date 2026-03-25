@@ -1,0 +1,56 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Chaos Findings",
+  "description": "Atomic timestamped adversarial and security findings from chaos testing.",
+  "type": "object",
+  "required": ["findings"],
+  "properties": {
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "finding", "severity", "category", "timestamp", "status"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique identifier, e.g. 'chaos-001'",
+            "pattern": "^chaos-[0-9]+$"
+          },
+          "finding": {
+            "type": "string",
+            "description": "What was found"
+          },
+          "severity": {
+            "type": "string",
+            "enum": ["low", "medium", "high", "critical"],
+            "description": "Severity of the finding"
+          },
+          "category": {
+            "type": "string",
+            "enum": ["race-condition", "resource-leak", "error-handling", "security", "data-integrity", "edge-case"],
+            "description": "Finding category"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date",
+            "description": "Date the finding was discovered (YYYY-MM-DD)"
+          },
+          "workflow": {
+            "type": "string",
+            "description": "Feature workflow where this was found"
+          },
+          "resolution": {
+            "type": ["string", "null"],
+            "description": "How the finding was addressed",
+            "default": null
+          },
+          "status": {
+            "type": "string",
+            "enum": ["active", "resolved", "wont-fix"],
+            "description": "Current status of the finding"
+          }
+        }
+      }
+    }
+  }
+}
