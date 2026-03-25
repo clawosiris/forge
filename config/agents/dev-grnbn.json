@@ -1,0 +1,55 @@
+{
+  "id": "dev-grnbn",
+  "workspace": "/home/clawd/.openclaw/workspace-dev-grnbn",
+  "model": "anthropic/claude-opus-4-5",
+  "tools": {
+    "elevated": {
+      "enabled": false
+    },
+    "fs": {
+      "workspaceOnly": true
+    },
+    "exec": {
+      "security": "allowlist",
+      "safeBins": [
+        "head",
+        "tail",
+        "grep",
+        "sed",
+        "awk",
+        "sort",
+        "uniq",
+        "wc",
+        "tr",
+        "cut",
+        "ls",
+        "find",
+        "mkdir",
+        "cp",
+        "mv",
+        "rm",
+        "basename",
+        "dirname",
+        "xargs",
+        "touch",
+        "chmod",
+        "git",
+        "gh",
+        "jq",
+        "curl",
+        "poetry",
+        "python3",
+        "pip",
+        "date",
+        "sleep",
+        "echo",
+        "printf",
+        "tee",
+        "mktemp",
+        "realpath",
+        "test"
+      ]
+    }
+  },
+  "_comment": "Group-bound agent for GRNBN dev Signal group. Hardened with exec allowlist and workspace confinement. Includes Python tooling."
+}
