@@ -2,6 +2,8 @@
 
 A structured, multi-agent software development workflow that separates cognitive concerns: creative agents write specs and code, critical agents review them, and adversarial agents break assumptions.
 
+Fleet Manager Phase 1 is also included: a host-level operational skill for provisioning and managing multiple Forge instances on a single machine.
+
 ## Architecture
 
 ```
@@ -50,7 +52,9 @@ cd forge
 | `workspace/templates/forge-supervisor.md` | Supervisor spawn template |
 | `workspace/templates/agents/` | Specialist agent prompt templates |
 | `workspace/knowledge/` | Project knowledge directory (populate per-project) |
+| `skills/fleet-manager/` | Fleet provisioning skill, scripts, schema, and instance template |
 | `docs/deployment-plan.md` | Full architecture documentation |
+| `docs/fleet-manager.md` | Fleet Manager usage and operational notes |
 
 ## Workflow Tiers
 
@@ -107,6 +111,8 @@ Full lifecycle management: issue triage, label-based state tracking, PR review i
 ## Documentation
 
 See [`docs/deployment-plan.md`](docs/deployment-plan.md) for the full architecture, state machine, failure handling, and observability details.
+
+Fleet operations are documented in [`docs/fleet-manager.md`](docs/fleet-manager.md).
 
 ## License
 
