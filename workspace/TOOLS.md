@@ -93,6 +93,19 @@ apiKey: { "$secret": "op:OpenClaw/Anthropic/api-key" }
 
 See `docs/security/secrets-management.md` for full details.
 
+## Temp File Cleanup
+
+Agents should clean up temp files after use. As a safety net, a system cron
+sweeps files older than 3 days:
+
+```bash
+# Add to system crontab (crontab -e) or deploy.sh
+# Runs daily at 4 AM
+0 4 * * * find ~/.openclaw/workspace*/tmp -type f -mtime +3 -delete 2>/dev/null; find ~/.openclaw/workspace*/tmp -type d -empty -delete 2>/dev/null
+```
+
+Or add via OpenClaw cron (see config example in `openclaw-standalone.json5`).
+
 **Key principle:** Sandboxed agents cannot access secrets because:
 1. `tools.fs.workspaceOnly: true` — no access to `~/.openclaw/`
 2. `tools.exec.security: "allowlist"` — can't run arbitrary commands

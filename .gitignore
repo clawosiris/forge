@@ -15,3 +15,7 @@ memory/*.md
 !memory/.gitkeep
 specs/changes/*/
 projects/
+
+# Temp files (auto-cleaned after 3 days)
+workspace/tmp/*
+!workspace/tmp/.gitkeep

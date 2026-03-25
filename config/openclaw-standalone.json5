@@ -269,6 +269,17 @@
     enabled: true,
     maxConcurrentRuns: 1,
     sessionRetention: "48h",
+    // Scheduled jobs — add via `cron` tool or CLI
+    // Example: temp file cleanup (files older than 3 days)
+    // jobs: [{
+    //   name: "tmp-cleanup",
+    //   schedule: { kind: "cron", expr: "0 4 * * *" },  // 4 AM daily
+    //   payload: {
+    //     kind: "agentTurn",
+    //     message: "Clean up temp files: find ~/.openclaw/workspace/tmp -type f -mtime +3 -delete && find ~/.openclaw/workspace/tmp -type d -empty -delete"
+    //   },
+    //   sessionTarget: "isolated",
+    // }],
   },
 
   // ─── ACP (Agent Communication Protocol) ────────────────────────────────
