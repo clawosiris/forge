@@ -24,7 +24,7 @@
 
   agents: {
     defaults: {
-      workspace: "/home/openclaw/.openclaw/workspace",
+      workspace: "/home/node/.openclaw/workspace",
       userTimezone: "America/New_York",
 
       models: {
@@ -48,7 +48,7 @@
         id: "main",
         default: true,
         name: "Fleet Manager",
-        workspace: "/home/openclaw/.openclaw/workspace",
+        workspace: "/home/node/.openclaw/workspace",
         model: "anthropic/claude-opus-4-5",
         params: {
           thinkingDefault: "adaptive",

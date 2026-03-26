@@ -1,15 +1,23 @@
-FROM debian:bookworm-slim
+# Forge instance container
+# Based on official OpenClaw image, adds coding agents and dev tools
+FROM ghcr.io/openclaw/openclaw:main-slim
 
+USER root
+
+# Add development tools and coding agents
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    nodejs npm git curl jq gh build-essential python3 ca-certificates && \
-    npm install -g openclaw @anthropic/claude-code codex && \
-    useradd -m -s /bin/bash openclaw && \
-    rm -rf /var/lib/apt/lists/*
+    gh \
+    build-essential \
+    python3 \
+    jq \
+    && npm install -g @anthropic/claude-code codex \
+    && rm -rf /var/lib/apt/lists/*
 
-USER openclaw
-WORKDIR /home/openclaw
+USER node
+WORKDIR /home/node
 
-COPY --chown=openclaw:openclaw config/ .openclaw/
-COPY --chown=openclaw:openclaw workspace/ .openclaw/workspace/
+# Copy Forge config and workspace template
+COPY --chown=node:node config/ .openclaw/
+COPY --chown=node:node workspace/ .openclaw/workspace/
 
-ENTRYPOINT ["openclaw", "gateway", "start", "--config", "/home/openclaw/.openclaw/openclaw.json5"]
+ENTRYPOINT ["openclaw", "gateway", "start", "--config", "/home/node/.openclaw/openclaw.json5"]

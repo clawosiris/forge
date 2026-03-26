@@ -1,6 +1,10 @@
 ---
 fleet_manager_user: openclaw
 fleet_manager_port: 18799
+
+# Container images
+# Base: official OpenClaw image (extended with podman for fleet-manager, dev tools for forge)
+fleet_manager_base_image: ghcr.io/openclaw/openclaw:main-slim
 fleet_manager_image: localhost/openclaw-fleet-manager:latest
 forge_instance_image: localhost/openclaw-forge:latest
 forge_port_range_start: 18800
