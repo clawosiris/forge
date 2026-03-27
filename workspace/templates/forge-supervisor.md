@@ -283,8 +283,10 @@ sessions_spawn({
 **PR Reviewer prompt must include:**
 - The full OpenSpec document (or path to it)
 - The PR number to review
+- The review checklist (`docs/rules/review-checklist.md`) for structured two-pass review
 - Instruction to use `gh pr diff` and `gh pr view` to examine the changes
 - Instruction to submit a GitHub PR review via `gh pr review` with either `--approve` or `--request-changes`
+- Instruction to use Fix-First heuristic: AUTO-FIX mechanical issues, ASK for ambiguous ones
 - Review criteria: correctness against OpenSpec, error handling, test coverage, idiomatic code, no scope creep beyond spec
 
 **Claude Code review mode constraints:**
@@ -367,6 +369,85 @@ When work spans multiple repositories:
 - Max 15 agent spawns per workflow → pause, report to human
 - Max 4 hours wall-clock → checkpoint, notify human
 - Max 3 iterations per feedback loop → escalate to human
+
+## Escalation Protocol
+
+All spawned agents must end their output with a **Completion Status** block:
+
+```
+## Completion Status
+
+STATUS: DONE | DONE_WITH_CONCERNS | BLOCKED | NEEDS_CONTEXT
+CONFIDENCE: HIGH | MEDIUM | LOW
+REASON: [1-2 sentences]
+ATTEMPTED: [if not DONE]
+RECOMMENDATION: [if not DONE]
+```
+
+### Handling Agent Completion Status
+
+| Status | Supervisor Action |
+|--------|-------------------|
+| `DONE` | Proceed to next state, log in journal |
+| `DONE_WITH_CONCERNS` | Log concerns in journal, proceed with caution, add to PR review notes |
+| `BLOCKED` | Post to GitHub issue with full context, notify parent session, halt workflow |
+| `NEEDS_CONTEXT` | Request clarification from human, re-spawn agent with additional context when received |
+
+### Three-Attempt Rule
+
+Agents should try up to 3 approaches before escalating as BLOCKED. The supervisor enforces this:
+
+1. If an agent returns BLOCKED after only 1 attempt, consider re-spawning with adjusted instructions
+2. Track retry counts in `workflow-state.json` per agent role
+3. After 3 agent spawns for the same task with BLOCKED status, escalate to human
+
+### Mandatory Escalation (No Retry)
+
+These triggers bypass the three-attempt rule — escalate immediately:
+
+- Security-sensitive changes (auth, crypto, permissions)
+- Breaking API changes
+- Scope ambiguity that can't be resolved from spec
+- Conflicting requirements
+- Missing external dependencies or credentials
+
+### Escalation Message Format
+
+When posting escalations to GitHub issues:
+
+```markdown
+**[Supervisor]** ⚠️ ESCALATION REQUIRED
+
+**Agent:** [role]
+**Status:** BLOCKED
+**Trigger:** [which trigger]
+
+**Summary:** [1-2 sentences]
+
+**Attempted Approaches:**
+1. [Approach]: [outcome]
+2. [Approach]: [outcome]
+3. [Approach]: [outcome]
+
+**Blocking Issue:** [specific problem]
+
+**Recommendation:** [what human should do]
+
+**Artifacts:** [links to partial work, logs]
+```
+
+When notifying parent session via `sessions_send`:
+
+```
+⚠️ BLOCKED: [feature name]
+
+[1 sentence summary]
+
+Action needed: [specific ask]
+Issue: [link to GitHub issue with full context]
+```
+
+See `docs/rules/escalation-protocol.md` for full details.
 
 ## Project Journal (MANDATORY)
 
