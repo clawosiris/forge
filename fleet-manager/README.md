@@ -2,6 +2,13 @@
 
 Fleet Manager is a standalone OpenClaw deployment that manages multiple Forge instances as sibling rootless Podman containers.
 
+## Container Images
+
+Both container images are based on the **official OpenClaw image** (`ghcr.io/openclaw/openclaw:main-slim`):
+
+- **Fleet Manager**: Adds Podman CLI for managing sibling containers
+- **Forge Instance**: Adds coding agents (Codex, Claude Code) and dev tools (gh, python3, build-essential)
+
 ## What It Does
 
 - Provisions new Forge instances from a reusable container image
