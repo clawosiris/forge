@@ -17,7 +17,8 @@ USER node
 WORKDIR /home/node
 
 # Copy Forge config and workspace template
-COPY --chown=node:node config/ .openclaw/
+# OpenClaw reads config from ~/.openclaw/config.yaml
+COPY --chown=node:node config/openclaw.json5 .openclaw/config.yaml
 COPY --chown=node:node workspace/ .openclaw/workspace/
 
-ENTRYPOINT ["openclaw", "gateway", "start", "--config", "/home/node/.openclaw/openclaw.json5"]
+ENTRYPOINT ["openclaw", "gateway", "start"]
