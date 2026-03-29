@@ -1,6 +1,56 @@
 # Forge — Multi-Agent Engineering Process for OpenClaw
 
-A structured, multi-agent software development workflow that now ships with a container-native Fleet Manager for running multiple Forge instances as sibling Podman containers.
+A structured, multi-agent software development workflow that orchestrates specialized AI agents through analysis, specification, implementation, and review phases. Ships with a container-native Fleet Manager for running multiple Forge instances.
+
+## Core Principles
+
+### Model Diversity as Defense-in-Depth
+
+Forge deliberately uses **different model families** for generation vs review:
+
+| Phase | Model | Harness | Why |
+|-------|-------|---------|-----|
+| Analysis | Claude Opus 4.6 | Subagent | Deep reasoning for requirements |
+| Spec Review | Claude Sonnet 4 | Subagent | Fresh perspective, minimal context |
+| **Implementation** | **GPT-5.3-codex** | **Codex CLI/ACP** | Autonomous coding, edit→test→fix |
+| **Code Review** | **Claude Sonnet 4** | **Claude Code CLI/ACP** | Careful analysis, GitHub integration |
+| Chaos Testing | o3-mini | Subagent | Reasoning model for adversarial exploration |
+| Security Audit | Claude Sonnet 4 | Subagent | Structured security checklist |
+
+**Key rule:** Never call LLM APIs directly for implementation or review. Always route through the coding agent harnesses (Codex, Claude Code) which provide workspace isolation, file operations, and enforced constraints.
+
+### Review Findings as GitHub Issues
+
+PR review findings are filed as GitHub Issues with `review-finding` labels for tracking and resolution.
+
+### Worklog for Extended Sessions
+
+Agents maintain `worklog.md` files during implementation with progress tracking, enabling crash recovery and visibility.
+
+## Agent Pipeline
+
+```
+Requirement → Analyst → Spec Review → [Human Gate] → Implementer (Codex)
+    → CI Monitor → Chaos/Security (parallel) → PR Review (Claude Code) 
+    → GitHub Issues → [Human Gate] → Release
+```
+
+See [`docs/agent-pipeline.md`](docs/agent-pipeline.md) for full documentation.
+
+## Quick Start
+
+```bash
+git clone https://github.com/clawosiris/forge.git
+cd forge
+./deploy.sh
+```
+
+`deploy.sh` handles:
+- Validates `podman`, `podman.socket`, and `systemd --user`
+- Prompts for API keys and gateway token
+- Creates Podman secrets
+- Builds Fleet Manager and Forge instance images
+- Starts Fleet Manager on `127.0.0.1:18799`
 
 ## Fleet Manager Architecture
 
@@ -25,34 +75,37 @@ Host Machine
 │  └──────────┘    └──────────┘    └──────────┘
 ```
 
-The old Unix-user-per-instance model is gone. Fleet Manager is now a rootless Podman container that provisions Forge instances as sibling containers, with credentials delivered through Podman secrets and persistent data stored in named volumes.
-
-## Quick Start
-
-```bash
-git clone https://github.com/clawosiris/forge.git
-cd forge
-./deploy.sh
-```
-
-`deploy.sh` now:
-- validates `podman`, `podman.socket`, and `systemd --user`
-- prompts for API keys and gateway token if they are not exported
-- creates Podman secrets
-- builds the `fleet-manager` and `forge-instance` images
-- creates the `forge-fleet` network
-- starts the Fleet Manager container on `127.0.0.1:18799`
+Fleet Manager provisions Forge instances as sibling Podman containers with credentials delivered through Podman secrets.
 
 ## Repo Layout
 
-- `fleet-manager/containers/` contains the build contexts for the Fleet Manager and Forge instance images
-- `skills/fleet-manager/` contains the provisioning, teardown, and status scripts used inside the manager container
-- `ansible/` contains a rootless Podman deployment role using a quadlet
-- `docs/fleet-manager.md` documents runtime operations and state
+```
+forge/
+├── ansible/                    # Rootless Podman deployment role
+├── config/                     # Configuration templates
+├── docs/
+│   ├── agent-pipeline.md       # Full pipeline documentation
+│   ├── fleet-manager.md        # Runtime operations
+│   └── rules/                  # Review checklist, escalation protocol
+├── fleet-manager/containers/   # Container build contexts
+├── journal/                    # Project journal entries
+├── skills/fleet-manager/       # Provisioning scripts
+└── workspace/
+    └── templates/
+        ├── forge-supervisor.md # Supervisor prompt
+        └── agents/             # Agent role templates
+            ├── analyst.md
+            ├── chaos-ralph.md
+            ├── code-reviewer.md
+            ├── implementer.md
+            ├── pr-reviewer.md
+            ├── security-auditor.md
+            └── spec-reviewer.md
+```
 
 ## Operations
 
-Provision, inspect, and destroy Forge instances with the Fleet Manager skill:
+Provision, inspect, and destroy Forge instances:
 
 ```bash
 skills/fleet-manager/scripts/provision.sh client-a
@@ -60,9 +113,9 @@ skills/fleet-manager/scripts/status.sh
 skills/fleet-manager/scripts/teardown.sh --archive client-a
 ```
 
-## Ansible
+## Ansible Deployment
 
-Use the included role when you want repeatable remote deployment instead of the local `deploy.sh` flow:
+For repeatable remote deployment:
 
 ```bash
 cd ansible
@@ -71,20 +124,54 @@ ansible-vault encrypt vault.yml
 ansible-playbook -i inventory/hosts.yml deploy.yml --ask-vault-pass
 ```
 
-More detail is in [`docs/fleet-manager.md`](docs/fleet-manager.md) and [`ansible/README.md`](ansible/README.md).
+See [`ansible/README.md`](ansible/README.md) for details.
 
-## Agent Pipeline
+## Agent Roster
 
-Forge orchestrates a structured pipeline of specialized AI agents:
+| Role | Runtime | Model | Purpose |
+|------|---------|-------|---------|
+| Analyst | subagent | claude-opus-4-6 | Requirements → OpenSpec |
+| Spec Reviewer | subagent | claude-sonnet-4 | Spec quality gate |
+| **Implementer** | **Codex ACP** | **gpt-5.3-codex** | Code implementation |
+| **PR Reviewer** | **Claude Code ACP** | **claude-sonnet-4** | Review → GitHub Issues |
+| Chaos Ralph | subagent | o3-mini | Adversarial testing |
+| Security Auditor | subagent | claude-sonnet-4 | Security checklist |
 
-```
-Requirement → Analyst → Spec Review → [Human Gate] → Implementer (Codex)
-    → CI Monitor → Chaos/Security (parallel) → PR Review (Claude) → [Human Gate] → Release
-```
+## Workflow Tiers
 
-See [`docs/agent-pipeline.md`](docs/agent-pipeline.md) for the full pipeline documentation including:
-- Agent roles and responsibilities
-- Runtime configurations (subagent vs ACP)
-- Workflow state machine
-- Knowledge injection patterns
-- Circuit breakers and escalation
+| Tier | Scope | Agents |
+|------|-------|--------|
+| Small | Bug fix, <50 LOC | Implementer + PR Reviewer |
+| Medium | Feature, 50-500 LOC | + Analyst + Spec Reviewer |
+| Large | Architecture, >500 LOC | + Chaos Ralph + Security Auditor |
+
+## Circuit Breakers
+
+| Limit | Threshold |
+|-------|-----------|
+| Agent spawns | Max 15/workflow |
+| Wall-clock | Max 4 hours |
+| Iterations | Max 3/loop |
+
+## BSI/ANSSI Compliance
+
+This workflow aligns with BSI/ANSSI recommendations for AI coding assistants:
+
+- Human gates at spec approval and merge approval
+- Different model families for generation vs review (defense-in-depth)
+- Review findings tracked as GitHub Issues
+- Structured security audit with anti-manipulation clause
+- Worklog documentation for audit trail
+
+See [Human Validation Proposal](https://codeberg.org/llnvd/pages/src/branch/main/content/gists/openclaw/human-validation-spec-test-driven-dev.md) for the full compliance framework.
+
+## Documentation
+
+- [Agent Pipeline](docs/agent-pipeline.md) — Full pipeline with model rationale
+- [Fleet Manager](docs/fleet-manager.md) — Container operations
+- [Supervisor Template](workspace/templates/forge-supervisor.md) — Orchestration prompt
+- [Agent Templates](workspace/templates/agents/) — Role-specific prompts
+
+## License
+
+Apache 2.0 — See [LICENSE](LICENSE)

@@ -16,28 +16,64 @@ Forge orchestrates a structured pipeline of specialized AI agents to move requir
         ▼                           ▼                           ▼
    ┌─────────┐                ┌───────────┐              ┌────────────┐
    │ ANALYST │───────────────▶│ SPEC      │──────────────▶│ IMPLEMENTER│
-   │         │   OpenSpec    │ REVIEWER  │   Approved    │ (Codex)    │
-   └─────────┘                └───────────┘    Spec       └────────────┘
-        │                           │                           │
+   │ (Opus)  │   OpenSpec    │ REVIEWER  │   Approved    │ (Codex)    │
+   └─────────┘                │ (Sonnet)  │    Spec       └────────────┘
+        │                     └───────────┘                     │
         │                           │                           ▼
         │                           │                    ┌────────────┐
         │                           │                    │ CI MONITOR │
         │                           │                    └────────────┘
-        │                           │                           │
         │                    ┌──────┴──────┐                    │
         │                    ▼             ▼                    ▼
         │             ┌──────────┐  ┌───────────┐        ┌────────────┐
         │             │ CHAOS    │  │ SECURITY  │        │ PR REVIEWER│
-        │             │ RALPH    │  │ AUDITOR   │        │ (Claude)   │
+        │             │ RALPH    │  │ AUDITOR   │        │ (Claude    │
+        │             │ (o3-mini)│  │ (Sonnet)  │        │  Code)     │
         │             └──────────┘  └───────────┘        └────────────┘
         │                    │             │                    │
-        │                    └──────┬──────┘                    │
-        │                           ▼                           ▼
-        │                    ┌────────────┐              ┌────────────┐
-        └────────────────────│   HUMAN    │◀─────────────│   MERGE    │
-                             │   GATES    │              │  APPROVAL  │
-                             └────────────┘              └────────────┘
+        │                    └──────┬──────┘                    ▼
+        │                           ▼                    ┌────────────┐
+        │                    ┌────────────┐              │  GITHUB    │
+        └────────────────────│   HUMAN    │◀─────────────│  ISSUES    │
+                             │   GATES    │              └────────────┘
+                             └────────────┘
 ```
+
+## Design Principles
+
+### Model Diversity as Defense-in-Depth
+
+The pipeline deliberately uses **different model families** for generation vs review:
+
+- **OpenAI (via Codex)** for implementation — autonomous coding with full-auto mode
+- **Anthropic (via Claude Code)** for review — careful analysis with read-only constraints
+- **o3-mini** for chaos testing — reasoning model for adversarial exploration
+
+This provides complementary coverage: different training data means different blind spots, and reviewers naturally find flaws in other models' outputs.
+
+### Mandatory Harness Usage
+
+**Never call LLM APIs directly** for implementation or review tasks:
+
+| Task | Required Harness | Why |
+|------|------------------|-----|
+| Implementation | **Codex CLI/ACP** | Provides workspace isolation, file ops, test execution, worklog |
+| Code Review | **Claude Code CLI/ACP** | Provides repo access, read-only mode, GitHub CLI integration |
+
+The harnesses enforce constraints (workspace boundaries, commit conventions, review-only mode) that raw API calls cannot provide.
+
+### Review Findings as GitHub Issues
+
+PR review findings are filed as GitHub Issues for tracking:
+
+```bash
+gh issue create \
+  --title "[Review] <finding-title>" \
+  --label "review-finding" --label "<severity>" \
+  --body "<structured finding with location, description, fix>"
+```
+
+This creates a trackable workflow for resolving review findings and provides an audit trail.
 
 ## Pipeline Stages
 
@@ -91,7 +127,7 @@ The Spec Reviewer:
 
 ```yaml
 Runtime: subagent
-Model: claude-sonnet-4-6
+Model: claude-sonnet-4
 Timeout: 600s
 Knowledge: project-context only (minimal — preserves fresh perspective)
 ```
@@ -108,25 +144,48 @@ The supervisor adds `awaiting-approval` label and posts a summary. Human reviews
 
 ### 5. Implementation (Implementer / Codex)
 
-**Actor:** Implementer via Codex ACP  
+**Actor:** Implementer via **Codex ACP or CLI** (MANDATORY)  
 **Input:** Merged OpenSpec, feature branch  
 **Output:** Draft PR with implementation
+
+**Always route GPT through Codex** — never call GPT models directly. Codex provides:
+- Workspace isolation and file operations
+- Shell access for tests and builds
+- Commit convention enforcement
+- Worklog maintenance for crash recovery
 
 The Implementer (Codex):
 1. Reads the OpenSpec as the contract
 2. Creates feature branch and opens draft PR
 3. Implements code following the spec phases
 4. Writes tests alongside implementation
-5. Runs pre-commit validation (format, lint, test, docs)
-6. Pushes incremental commits referencing the requirement issue
-7. Marks PR as "Ready for Review" when complete
+5. Maintains `worklog.md` with progress tracking
+6. Runs pre-commit validation (format, lint, test, docs)
+7. Pushes incremental commits referencing the requirement issue
+8. Marks PR as "Ready for Review" when complete
 
 ```yaml
 Runtime: acp
-Agent: codex
+Agent: codex (gpt-5.3-codex)
 Timeout: 1800s (30 min)
 Knowledge: OpenSpec + project-context + patterns
 Working Dir: {PROJECT_ROOT}
+```
+
+**Spawning options:**
+```javascript
+// Via ACP (preferred for orchestration)
+sessions_spawn({
+  runtime: "acp",
+  agentId: "codex",
+  mode: "run",
+  task: "<implementation prompt>",
+  cwd: "{PROJECT_ROOT}",
+  runTimeoutSeconds: 1800
+})
+
+// Via CLI (alternative, e.g., from sandboxed agents)
+exec({ command: "codex exec --full-auto '<prompt>'" })
 ```
 
 ### 6. CI Monitoring
@@ -154,15 +213,16 @@ For **large** tier workflows, these agents run in parallel during implementation
 **Input:** Implementation PR, project context, chaos catalog  
 **Output:** PR comment with chaos findings
 
-Ralph performs adversarial testing:
-- Edge cases and boundary conditions
+Ralph performs adversarial testing using a **reasoning model** (o3-mini) to systematically explore edge cases:
+- Boundary conditions and type confusion
 - Error path stress testing
 - Resource exhaustion scenarios
 - Race conditions and concurrency issues
+- Injection vectors
 
 ```yaml
 Runtime: subagent
-Model: claude-sonnet-4-6
+Model: o3-mini  # Reasoning model for adversarial exploration
 Timeout: 600s
 Knowledge: project-context + chaos-catalog
 ```
@@ -173,7 +233,7 @@ Knowledge: project-context + chaos-catalog
 **Input:** Implementation PR diff, compliance requirements  
 **Output:** PR comment with security findings
 
-The Security Auditor reviews:
+The Security Auditor reviews using a structured checklist:
 - Attack surface changes
 - Authentication/authorization patterns
 - Input validation and sanitization
@@ -182,7 +242,7 @@ The Security Auditor reviews:
 
 ```yaml
 Runtime: subagent
-Model: claude-sonnet-4-6
+Model: claude-sonnet-4
 Timeout: 600s
 Knowledge: project-context + compliance + chaos-catalog
 ```
@@ -203,24 +263,60 @@ Significant drift triggers human notification before proceeding.
 
 ### 9. PR Review (PR Reviewer / Claude Code)
 
-**Actor:** PR Reviewer via Claude Code ACP  
+**Actor:** PR Reviewer via **Claude Code ACP or CLI** (MANDATORY)  
 **Input:** Implementation PR, OpenSpec, review checklist  
-**Output:** GitHub PR review (Approve / Request Changes)
+**Output:** GitHub PR review + GitHub Issues for findings
+
+**Always route Claude through Claude Code** — never call Claude directly. Claude Code provides:
+- Repo access and file reading
+- GitHub CLI integration for PR reviews
+- Read-only mode (no accidental code modifications)
 
 The PR Reviewer (Claude Code):
 1. Reviews diff via `gh pr diff`
 2. Validates against OpenSpec sections
 3. Checks: correctness, error handling, test coverage, idiomatic code
 4. Uses Fix-First heuristic: AUTO-FIX mechanical issues, ASK for ambiguous
-5. Submits PR review via `gh pr review`
+5. **Files each finding as a GitHub Issue** with `review-finding` label
+6. Submits PR review via `gh pr review` linking to created issues
 
 ```yaml
 Runtime: acp
-Agent: claude-code
+Agent: claude-code (claude-sonnet-4)
 Timeout: 900s (15 min)
 Knowledge: OpenSpec + project-context only
 Working Dir: {PROJECT_ROOT}
-Mode: Read-only (no file edits — review only)
+Mode: Read-only (REVIEW MODE — no file edits)
+```
+
+**Spawning options:**
+```javascript
+// Via ACP (preferred for orchestration)
+sessions_spawn({
+  runtime: "acp",
+  agentId: "claude-code",
+  mode: "run",
+  task: "<review prompt with REVIEW MODE instruction>",
+  cwd: "{PROJECT_ROOT}",
+  runTimeoutSeconds: 900
+})
+
+// Via CLI (alternative)
+exec({ command: "claude --print '<review prompt>'" })
+```
+
+**Filing findings as issues:**
+```bash
+gh issue create \
+  --title "[Review] <finding-title>" \
+  --label "review-finding" --label "<severity>" \
+  --body "## Finding from PR #<pr> review
+**Severity:** HIGH|MEDIUM|LOW
+**Location:** \`file:line\`
+### Description
+<issue description>
+### Suggested Fix
+<recommendation>"
 ```
 
 **Iteration:** If reviewer requests changes, Implementer revises (max 3 iterations).
@@ -270,11 +366,20 @@ Post-completion tasks:
 |------|---------|-------------|---------|---------|
 | Supervisor | — | — | — | Orchestration, state management |
 | Analyst | subagent | claude-opus-4-6 | 900s | Requirements analysis, OpenSpec |
-| Spec Reviewer | subagent | claude-sonnet-4-6 | 600s | Spec quality review |
-| Implementer | **ACP** | **Codex** | 1800s | Code implementation |
-| PR Reviewer | **ACP** | **Claude Code** | 900s | Code review |
-| Chaos Ralph | subagent | claude-sonnet-4-6 | 600s | Adversarial testing |
-| Security Auditor | subagent | claude-sonnet-4-6 | 600s | Security review |
+| Spec Reviewer | subagent | claude-sonnet-4 | 600s | Spec quality review |
+| Implementer | **ACP (Codex)** | **gpt-5.3-codex** | 1800s | Code implementation |
+| PR Reviewer | **ACP (Claude Code)** | **claude-sonnet-4** | 900s | Code review → GitHub Issues |
+| Chaos Ralph | subagent | **o3-mini** | 600s | Adversarial testing |
+| Security Auditor | subagent | claude-sonnet-4 | 600s | Security review |
+
+### Model Selection Rationale
+
+| Model | Roles | Why |
+|-------|-------|-----|
+| **claude-opus-4-6** | Analyst | Deep reasoning for complex requirements; initial spec quality determines downstream success |
+| **claude-sonnet-4** | Spec Reviewer, PR Reviewer, Security Auditor | Careful analysis, nuance, instruction-following; cost-effective for review tasks |
+| **gpt-5.3-codex** | Implementer | Optimized for autonomous coding; edit→test→fix loop; different family enables complementary review |
+| **o3-mini** | Chaos Ralph | Reasoning model excels at adversarial thinking; systematic exploration of edge cases |
 
 ## Workflow Tiers
 
@@ -315,6 +420,7 @@ All workflow steps are tracked through **GitHub Issues and Pull Requests**:
 | Specification | PR: `spec/<feature>/openspec.md` |
 | Implementation | PR: `feature/<feature>` branch |
 | Reviews | GitHub PR review comments |
+| Review Findings | Issues with `review-finding` label |
 | Status updates | Issue/PR comments tagged by role |
 
 Agent comments are tagged with role: `**[Supervisor]**`, `**[Analyst]**`, `**[Reviewer]**`, etc.
@@ -347,6 +453,34 @@ Agent comments are tagged with role: `**[Supervisor]**`, `**[Analyst]**`, `**[Re
 └──────────────────────────────────────────────────────────────────┘
 ```
 
+## Worklog Pattern
+
+For extended implementation sessions, agents maintain a `worklog.md`:
+
+```markdown
+# Worklog: <feature-name>
+**Last Updated:** YYYY-MM-DD HH:MM
+
+## Mission
+One-line goal.
+
+## Progress Summary
+✅ Completed items
+🔄 In progress  
+⬜ Not started
+
+## Current State
+What's working, what's not, where you are.
+
+## Key Learnings
+What you discovered that wasn't obvious.
+
+## Next Steps
+What to do next (for resumption).
+```
+
+This enables crash recovery and provides visibility into agent progress.
+
 ## Related Documentation
 
 - [Supervisor Template](../workspace/templates/forge-supervisor.md) — Full supervisor prompt
@@ -354,3 +488,4 @@ Agent comments are tagged with role: `**[Supervisor]**`, `**[Analyst]**`, `**[Re
 - [Review Checklist](rules/review-checklist.md) — PR review criteria
 - [Escalation Protocol](rules/escalation-protocol.md) — When and how to escalate
 - [CI Monitoring](rules/ci-monitoring.md) — CI failure handling
+- [BSI/ANSSI Compliance](https://codeberg.org/llnvd/pages/src/branch/main/content/gists/openclaw/human-validation-spec-test-driven-dev.md) — Human validation proposal
