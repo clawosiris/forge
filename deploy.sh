@@ -14,6 +14,7 @@ FLEET_MANAGER_NETWORK="${FLEET_MANAGER_NETWORK:-forge-fleet}"
 FLEET_MANAGER_PORT="${FLEET_MANAGER_PORT:-18799}"
 FLEET_MANAGER_REPO_MOUNT="${FLEET_MANAGER_REPO_MOUNT:-/opt/forge-fleet-manager}"
 FLEET_MANAGER_STATE_VOLUME="${FLEET_MANAGER_STATE_VOLUME:-fleet-manager-state}"
+STARTUP_GRACE_SECONDS="${STARTUP_GRACE_SECONDS:-12}"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -42,6 +43,7 @@ Environment:
   FLEET_MANAGER_NETWORK      Default: forge-fleet
   FLEET_MANAGER_PORT         Default: 18799
   FLEET_MANAGER_STATE_VOLUME Default: fleet-manager-state
+  STARTUP_GRACE_SECONDS      Default: 12 (post-start health check)
 
 Secrets:
   The deploy script will reuse existing podman secrets if they exist.
@@ -231,6 +233,23 @@ start_fleet_manager() {
   ok "Fleet Manager started"
 }
 
+verify_startup() {
+  log "Waiting ${STARTUP_GRACE_SECONDS}s for startup health check"
+  sleep "${STARTUP_GRACE_SECONDS}"
+
+  local status
+  status="$(podman inspect --format '{{.State.Status}}' "${FLEET_MANAGER_CONTAINER}" 2>/dev/null || true)"
+
+  if [[ "${status}" != "running" ]]; then
+    warn "Container ${FLEET_MANAGER_CONTAINER} failed startup check (status: ${status:-unknown})"
+    echo "--- recent container logs ---"
+    podman logs --tail 80 "${FLEET_MANAGER_CONTAINER}" 2>&1 || true
+    fail "Fleet Manager is not running after startup grace period"
+  fi
+
+  ok "Startup health check passed"
+}
+
 check_deployment() {
   require_cmd podman
 
@@ -314,6 +333,7 @@ main() {
   build_images
   ensure_network
   start_fleet_manager
+  verify_startup
 
   echo ""
   ok "Deployment complete"
