@@ -31,6 +31,7 @@ show_help() {
 Usage:
   ./deploy.sh
   ./deploy.sh --check
+  ./deploy.sh --recreate-secrets
   ./deploy.sh --help
 
 Environment:
@@ -42,10 +43,17 @@ Environment:
   FLEET_MANAGER_PORT         Default: 18799
   FLEET_MANAGER_STATE_VOLUME Default: fleet-manager-state
 
-Secrets read from the environment or prompted interactively:
-  ANTHROPIC_API_KEY
-  OPENAI_API_KEY
-  OPENCLAW_GATEWAY_TOKEN
+Secrets:
+  The deploy script will reuse existing podman secrets if they exist.
+  Only missing secrets will be prompted for.
+
+  To force recreation of all secrets, use --recreate-secrets or set
+  RECREATE_SECRETS=1 in the environment.
+
+  Secrets read from the environment or prompted interactively:
+    ANTHROPIC_API_KEY
+    OPENAI_API_KEY
+    OPENCLAW_GATEWAY_TOKEN
 USAGE
 }
 
@@ -84,6 +92,11 @@ prompt_secret() {
   export "$var_name"
 }
 
+secret_exists() {
+  local secret_name="$1"
+  podman secret inspect "${secret_name}" >/dev/null 2>&1
+}
+
 remove_existing_container() {
   if podman container exists "${FLEET_MANAGER_CONTAINER}"; then
     podman rm -f "${FLEET_MANAGER_CONTAINER}" >/dev/null
@@ -103,14 +116,59 @@ secret_upsert() {
 }
 
 create_secrets() {
-  prompt_secret ANTHROPIC_API_KEY "Anthropic API key"
-  prompt_secret OPENAI_API_KEY "OpenAI API key"
-  prompt_secret OPENCLAW_GATEWAY_TOKEN "Gateway token"
+  local secrets_needed=()
+  local secrets_exist=()
 
-  log "Creating podman secrets"
-  secret_upsert anthropic-api-key "${ANTHROPIC_API_KEY}"
-  secret_upsert openai-api-key "${OPENAI_API_KEY}"
-  secret_upsert gateway-token "${OPENCLAW_GATEWAY_TOKEN}"
+  # Check which secrets already exist
+  if secret_exists anthropic-api-key; then
+    secrets_exist+=("anthropic-api-key")
+  else
+    secrets_needed+=("anthropic-api-key")
+  fi
+
+  if secret_exists openai-api-key; then
+    secrets_exist+=("openai-api-key")
+  else
+    secrets_needed+=("openai-api-key")
+  fi
+
+  if secret_exists gateway-token; then
+    secrets_exist+=("gateway-token")
+  else
+    secrets_needed+=("gateway-token")
+  fi
+
+  # Report existing secrets
+  if [[ ${#secrets_exist[@]} -gt 0 ]]; then
+    ok "Using existing secrets: ${secrets_exist[*]}"
+  fi
+
+  # If all secrets exist, we're done
+  if [[ ${#secrets_needed[@]} -eq 0 ]]; then
+    ok "All secrets already exist"
+    return 0
+  fi
+
+  log "Missing secrets: ${secrets_needed[*]}"
+
+  # Prompt and create only missing secrets
+  for secret in "${secrets_needed[@]}"; do
+    case "${secret}" in
+      anthropic-api-key)
+        prompt_secret ANTHROPIC_API_KEY "Anthropic API key"
+        secret_upsert anthropic-api-key "${ANTHROPIC_API_KEY}"
+        ;;
+      openai-api-key)
+        prompt_secret OPENAI_API_KEY "OpenAI API key"
+        secret_upsert openai-api-key "${OPENAI_API_KEY}"
+        ;;
+      gateway-token)
+        prompt_secret OPENCLAW_GATEWAY_TOKEN "Gateway token"
+        secret_upsert gateway-token "${OPENCLAW_GATEWAY_TOKEN}"
+        ;;
+    esac
+  done
+
   ok "Secrets created"
 }
 
@@ -172,6 +230,24 @@ check_deployment() {
   echo "endpoint=http://127.0.0.1:${FLEET_MANAGER_PORT}"
 }
 
+recreate_all_secrets() {
+  log "Removing existing secrets for recreation"
+  for secret in anthropic-api-key openai-api-key gateway-token; do
+    if secret_exists "${secret}"; then
+      podman secret rm "${secret}" >/dev/null 2>&1 || true
+    fi
+  done
+
+  prompt_secret ANTHROPIC_API_KEY "Anthropic API key"
+  prompt_secret OPENAI_API_KEY "OpenAI API key"
+  prompt_secret OPENCLAW_GATEWAY_TOKEN "Gateway token"
+
+  secret_upsert anthropic-api-key "${ANTHROPIC_API_KEY}"
+  secret_upsert openai-api-key "${OPENAI_API_KEY}"
+  secret_upsert gateway-token "${OPENCLAW_GATEWAY_TOKEN}"
+  ok "All secrets recreated"
+}
+
 main() {
   case "${1:-}" in
     --help|-h)
@@ -182,6 +258,11 @@ main() {
       check_deployment
       exit 0
       ;;
+    --recreate-secrets)
+      require_cmd podman
+      recreate_all_secrets
+      exit 0
+      ;;
     "")
       ;;
     *)
@@ -189,9 +270,20 @@ main() {
       ;;
   esac
 
+  # Check if RECREATE_SECRETS is set
+  if [[ "${RECREATE_SECRETS:-}" == "1" ]]; then
+    FORCE_RECREATE_SECRETS=1
+  fi
+
   check_prereqs
   remove_existing_container
-  create_secrets
+
+  if [[ "${FORCE_RECREATE_SECRETS:-}" == "1" ]]; then
+    recreate_all_secrets
+  else
+    create_secrets
+  fi
+
   build_images
   ensure_network
   start_fleet_manager
