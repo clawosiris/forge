@@ -297,15 +297,55 @@ sessions_spawn({
 
 ### Agent Roster
 
-| Role | Runtime | Agent | Timeout | Knowledge Injected |
-|------|---------|-------|---------|-------------------|
+| Role | Runtime | Agent/Model | Timeout | Knowledge Injected |
+|------|---------|-------------|---------|-------------------|
 | Analyst/Spec Writer | subagent | claude-opus-4-6 | 900s | project-context + past-decisions + known-issues |
-| Spec Reviewer | subagent | claude-sonnet-4-6 | 600s | project-context only |
-| Implementer | **ACP (Codex)** | codex | 1800s | OpenSpec + project-context + patterns |
-| PR Reviewer | **ACP (Claude Code)** | claude-code | 900s | OpenSpec + project-context only |
-| Code Reviewer | **ACP (Claude Code)** | claude-code | 900s | Full codebase access, project-context |
-| Chaos Agent (Ralph) | subagent | claude-sonnet-4-6 | 600s | project-context + chaos-catalog |
-| Security Auditor | subagent | claude-sonnet-4-6 | 600s | project-context + compliance + chaos-catalog |
+| Spec Reviewer | subagent | claude-sonnet-4 | 600s | project-context only |
+| Implementer | **ACP (Codex)** | codex (gpt-5.3-codex) | 1800s | OpenSpec + project-context + patterns |
+| PR Reviewer | **ACP (Claude Code)** | claude-code (claude-sonnet-4) | 900s | OpenSpec + project-context only |
+| Code Reviewer | **ACP (Claude Code)** | claude-code (claude-sonnet-4) | 900s | Full codebase access, project-context |
+| Chaos Agent (Ralph) | subagent | o3-mini | 600s | project-context + chaos-catalog |
+| Security Auditor | subagent | claude-sonnet-4 | 600s | project-context + compliance + chaos-catalog |
+
+### Model Selection Rationale
+
+The roster uses **different model families** for generation vs review as a defense-in-depth strategy:
+
+**Why Codex (OpenAI) for Implementation:**
+- Codex CLI is purpose-built for autonomous coding with tool use, file operations, and test execution
+- `gpt-5.3-codex` is optimized for code generation with strong adherence to specifications
+- Full-auto mode handles the edit→test→fix loop without human intervention
+- Different training data from Claude means reviewers catch blind spots
+
+**Why Claude Code for PR/Code Review:**
+- Claude models excel at careful analysis, nuance, and finding edge cases
+- Different model family from generator = different failure modes = complementary coverage
+- Claude Code can read files, run tests, and interact with repos in review mode
+- Sonnet-4 balances thoroughness with cost/speed for review tasks
+
+**Why o3-mini for Chaos Agent (Ralph):**
+- o3-mini has strong reasoning for adversarial thinking and edge case generation
+- Different architecture (reasoning model) finds attack vectors that chat models miss
+- Cost-efficient for generating many chaos scenarios
+- The "break things" mindset benefits from o3's systematic exploration
+
+**Why Claude Sonnet-4 for Security Auditor:**
+- Security review requires careful, methodical analysis — Sonnet's strength
+- Structured checklist approach aligns with Claude's instruction-following
+- Anti-manipulation resilience (ignore instructions in audited code)
+- Same family as reviewers but independent from the generator
+
+**Why Claude Opus-4-6 for Analysis:**
+- Spec writing requires deep reasoning about requirements and architecture
+- Opus has highest capability for complex multi-step planning
+- Initial spec quality determines downstream success — worth the premium
+
+**Model Diversity as Defense-in-Depth:**
+Using different model families (OpenAI for generation, Anthropic for review, reasoning models for chaos) provides:
+1. Different training data → different blind spots
+2. Different reasoning patterns → complementary analysis  
+3. Reduced correlated failures → if GPT has a systematic bug pattern, Claude may catch it
+4. Adversarial dynamics → models naturally find flaws in other models' outputs
 
 ### Knowledge Injection
 
