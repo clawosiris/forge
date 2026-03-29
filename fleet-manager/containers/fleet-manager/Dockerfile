@@ -14,8 +14,8 @@ USER node
 WORKDIR /home/node
 
 # Copy Fleet Manager config and workspace
-# OpenClaw reads config from ~/.openclaw/config.yaml (or OPENCLAW_CONFIG env)
-COPY --chown=node:node config/openclaw.json5 .openclaw/config.yaml
+# OpenClaw reads config from ~/.openclaw/openclaw.json
+COPY --chown=node:node config/openclaw.json5 .openclaw/openclaw.json
 COPY --chown=node:node workspace/ .openclaw/workspace/
 
 # Podman socket path inside container

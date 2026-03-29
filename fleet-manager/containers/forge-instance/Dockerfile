@@ -17,8 +17,8 @@ USER node
 WORKDIR /home/node
 
 # Copy Forge config and workspace template
-# OpenClaw reads config from ~/.openclaw/config.yaml
-COPY --chown=node:node config/openclaw.json5 .openclaw/config.yaml
+# OpenClaw reads config from ~/.openclaw/openclaw.json
+COPY --chown=node:node config/openclaw.json5 .openclaw/openclaw.json
 COPY --chown=node:node workspace/ .openclaw/workspace/
 
 # Run gateway in foreground (no systemd in container)
