@@ -319,10 +319,40 @@ exec({
 - Review criteria: correctness against OpenSpec, error handling, test coverage, idiomatic code, no scope creep beyond spec
 - **Explicit instruction: "You are in REVIEW MODE. Do NOT modify any files. Read and analyze only."**
 
+**Filing review findings as GitHub Issues:**
+For each significant finding, create a GitHub issue to track resolution:
+
+```bash
+# Create issue for each finding
+gh issue create \
+  --title "[Review] <finding-title>" \
+  --body "## Finding from PR #<pr-number> review
+
+**Severity:** <HIGH|MEDIUM|LOW>
+**Category:** <correctness|security|performance|style>
+**Location:** \`<file>:<line>\`
+
+### Description
+<detailed description of the issue>
+
+### OpenSpec Reference
+<which spec section this violates, if applicable>
+
+### Suggested Fix
+<recommended approach>
+
+---
+*Filed by: PR Reviewer (Claude Code)*
+*PR: #<pr-number>*" \
+  --label "review-finding" \
+  --label "<severity>"
+```
+
 **Claude Code review mode constraints:**
 - The reviewer **must not modify code**. It reads and reviews only.
-- All feedback goes through GitHub PR review comments, not file edits.
+- All feedback goes through GitHub PR review AND issues for tracking.
 - The review must reference specific OpenSpec sections when flagging issues.
+- Link created issues in the PR review comment for visibility.
 
 ### Agent Roster
 
