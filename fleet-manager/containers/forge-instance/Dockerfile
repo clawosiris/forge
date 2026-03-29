@@ -10,7 +10,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     python3 \
     jq \
-    && npm install -g @anthropic/claude-code codex \
+    && npm install -g @anthropic-ai/claude-code @openai/codex \
     && rm -rf /var/lib/apt/lists/*
 
 USER node
