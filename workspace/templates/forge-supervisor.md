@@ -243,11 +243,18 @@ The Security Auditor runs as a subagent during implementation (parallel with Cha
 - Post all findings as a PR comment regardless of severity
 - Findings are **informational only** — they do not block the pipeline
 
-### ACP Spawning — Codex for Implementation
+### ACP Spawning — Codex for Implementation (MANDATORY)
 
-The Implementer runs as **Codex via ACP**. Codex operates directly in the project repo, creates/edits files, runs tests, and pushes commits.
+The Implementer **must** run as **Codex via ACP or CLI**. Never call GPT models directly for implementation tasks — always route through Codex to get the autonomous coding harness.
+
+**Why Codex, not raw GPT:**
+- Codex provides workspace isolation, file operations, and shell access
+- Enforces commit conventions and test requirements
+- Handles the edit→test→fix loop autonomously
+- Maintains worklog for crash recovery and progress tracking
 
 ```javascript
+// Via ACP (preferred for orchestration)
 sessions_spawn({
   runtime: "acp",
   agentId: "codex",
@@ -255,6 +262,13 @@ sessions_spawn({
   task: "<implementation prompt with OpenSpec + feature branch + issue ref>",
   cwd: "{PROJECT_ROOT}",
   runTimeoutSeconds: 1800
+})
+
+// Via CLI (alternative, e.g., from sandboxed agents)
+exec({
+  command: "codex exec --full-auto '<implementation prompt>'",
+  cwd: "{PROJECT_ROOT}",
+  timeout: 1800
 })
 ```
 
@@ -311,10 +325,11 @@ sessions_spawn({
 
 The roster uses **different model families** for generation vs review as a defense-in-depth strategy:
 
-**Why Codex (OpenAI) for Implementation:**
-- Codex CLI is purpose-built for autonomous coding with tool use, file operations, and test execution
-- `gpt-5.3-codex` is optimized for code generation with strong adherence to specifications
+**Why Codex for Implementation (MANDATORY):**
+- **Always route GPT through Codex CLI or ACP** — never call GPT models directly for implementation
+- Codex provides the autonomous coding harness: tool use, file operations, test execution
 - Full-auto mode handles the edit→test→fix loop without human intervention
+- The harness enforces workspace boundaries, commit conventions, and test requirements
 - Different training data from Claude means reviewers catch blind spots
 
 **Why Claude Code for PR/Code Review:**
