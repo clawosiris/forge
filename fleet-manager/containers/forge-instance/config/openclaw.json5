@@ -15,7 +15,7 @@
   gateway: {
     mode: "local",
     port: 18800,
-    bind: "0.0.0.0",
+    bind: "lan",
     auth: {
       mode: "token",
       token: { "$secret": "container:GATEWAY_AUTH_TOKEN" },
