@@ -1,11 +1,6 @@
 {
   secrets: {
     providers: {
-      container: {
-        source: "file",
-        path: "/run/secrets",
-        mode: "dir",
-      },
       env: {
         source: "env",
       },
@@ -18,7 +13,7 @@
     bind: "lan",
     auth: {
       mode: "token",
-      token: { "$secret": "container:GATEWAY_AUTH_TOKEN" },
+      token: { "$secret": "env:GATEWAY_AUTH_TOKEN" },
     },
   },
 

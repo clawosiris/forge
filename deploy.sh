@@ -223,9 +223,9 @@ start_fleet_manager() {
     -v "${PODMAN_SOCKET}:/run/podman/podman.sock:Z" \
     -v "${SCRIPT_DIR}:${FLEET_MANAGER_REPO_MOUNT}:ro,Z" \
     -v "${FLEET_MANAGER_STATE_VOLUME}:/home/openclaw/.fleet-manager:Z" \
-    --secret anthropic-api-key,target=ANTHROPIC_API_KEY \
-    --secret openai-api-key,target=OPENAI_API_KEY \
-    --secret gateway-token,target=GATEWAY_AUTH_TOKEN \
+    --secret anthropic-api-key,type=env,target=ANTHROPIC_API_KEY \
+    --secret openai-api-key,type=env,target=OPENAI_API_KEY \
+    --secret gateway-token,type=env,target=GATEWAY_AUTH_TOKEN \
     "${FLEET_MANAGER_IMAGE}" >/dev/null
 
   ok "Fleet Manager started"
