@@ -183,6 +183,47 @@ The supervisor manages these labels on the requirement issue to track state:
 | `releasing` | Release tagging and verification in progress |
 | `completed` | Done |
 
+### Role Assignment via Issues (NEW)
+
+Forge supports assigning work to agent roles through issue labels (and optionally GitHub assignees).
+
+#### Role labels
+
+| Label | Intended Agent Role |
+|-------|----------------------|
+| `role:analyst` | Analyst / Spec Writer |
+| `role:spec-reviewer` | Spec Reviewer |
+| `role:implementer` | Implementer (Codex) |
+| `role:pr-reviewer` | PR Reviewer (Claude Code) |
+| `role:security-auditor` | Security Auditor |
+| `role:chaos-ralph` | Chaos Agent (Ralph) |
+| `role:supervisor` | Supervisor orchestration task |
+
+#### Supervisor behavior
+
+- On each state transition, set exactly one active `role:*` label on the requirement issue.
+- Remove stale `role:*` labels before setting the next role label.
+- Spawn the corresponding agent based on the active role label.
+- Include role label updates in issue comments for auditability.
+
+#### Optional GitHub assignee mapping
+
+If the repo defines role→GitHub user mappings, the supervisor may mirror role assignment with `gh issue edit --add-assignee`.
+
+Example:
+
+```bash
+# Set role label
+gh issue edit <issue-number> \
+  --remove-label "role:analyst,role:spec-reviewer,role:implementer,role:pr-reviewer,role:security-auditor,role:chaos-ralph,role:supervisor" \
+  --add-label "role:implementer"
+
+# Optional assignee mirror
+gh issue edit <issue-number> --add-assignee <github-user>
+```
+
+Assignee mapping is optional; role labels are the source of truth for Forge routing.
+
 ### Branch Strategy
 
 ```

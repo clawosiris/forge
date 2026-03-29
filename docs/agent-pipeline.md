@@ -417,11 +417,27 @@ All workflow steps are tracked through **GitHub Issues and Pull Requests**:
 | Artifact | Location |
 |----------|----------|
 | Requirements | Issue with `requirement` label |
+| Role Routing | Requirement issue `role:*` label |
 | Specification | PR: `spec/<feature>/openspec.md` |
 | Implementation | PR: `feature/<feature>` branch |
 | Reviews | GitHub PR review comments |
 | Review Findings | Issues with `review-finding` label |
 | Status updates | Issue/PR comments tagged by role |
+
+### Role assignment labels
+
+Forge supports assigning issue ownership to agent roles using labels:
+- `role:analyst`
+- `role:spec-reviewer`
+- `role:implementer`
+- `role:pr-reviewer`
+- `role:security-auditor`
+- `role:chaos-ralph`
+- `role:supervisor`
+
+Supervisor rule: keep exactly one active `role:*` label on the requirement issue and update it on each state transition. Role labels are the source of truth for which agent should run next.
+
+Optional: mirror role labels to GitHub assignees with `gh issue edit --add-assignee` if a role→user map is configured.
 
 Agent comments are tagged with role: `**[Supervisor]**`, `**[Analyst]**`, `**[Reviewer]**`, etc.
 

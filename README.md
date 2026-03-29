@@ -23,6 +23,11 @@ Forge deliberately uses **different model families** for generation vs review:
 
 PR review findings are filed as GitHub Issues with `review-finding` labels for tracking and resolution.
 
+### Role Assignment via Issue Labels
+
+Forge can assign workflow ownership to agent roles using `role:*` labels on the requirement issue (`role:analyst`, `role:implementer`, `role:pr-reviewer`, etc.).
+The Supervisor updates one active role label per state transition and routes execution accordingly.
+
 ### Worklog for Extended Sessions
 
 Agents maintain `worklog.md` files during implementation with progress tracking, enabling crash recovery and visibility.
