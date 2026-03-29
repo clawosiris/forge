@@ -350,15 +350,43 @@ If the workflow includes a release stage:
 ### 12. Completion
 
 **Actor:** Supervisor  
-**Output:** Closed issue, updated knowledge, journal entry
+**Output:** Closed issue, updated knowledge, evidence bundle, journal entry
 
 Post-completion tasks:
 1. Close requirement issue with completion summary
 2. Archive workflow metrics to history
 3. Update knowledge files (decisions.json, chaos-findings.json)
 4. Regenerate summary files (patterns.md, chaos-catalog.md)
-5. Commit final journal entry
-6. Notify parent session
+5. **Generate evidence bundle** (High/Critical tier mandatory, Medium optional)
+6. Commit final journal entry
+7. Notify parent session
+
+## Evidence Bundle
+
+For audit-readiness, Forge generates an immutable evidence bundle at workflow completion.
+
+**Location:** `evidence/<feature-name>/evidence-bundle.json`
+
+**Contents:**
+- Spec version and approval metadata
+- Implementation PR, commits, AI usage flags
+- Review approval with human reviewer ID
+- Role separation verification
+- Critical-tier reproduction evidence
+- CI control outcomes (lint, SAST, license scan, etc.)
+- Finding lifecycle (issue → closure)
+- SBOM/license artifacts
+- Bundle hash for integrity
+
+**Tier requirements:**
+| Tier | Evidence Bundle |
+|------|-----------------|
+| Critical | Mandatory |
+| High | Mandatory |
+| Medium | Recommended |
+| Low | Not required |
+
+**Schema:** `docs/schemas/evidence-bundle.schema.json`
 
 ## Agent Roster Summary
 

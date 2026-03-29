@@ -32,6 +32,17 @@ The Supervisor updates one active role label per state transition and routes exe
 
 Agents maintain `worklog.md` files during implementation with progress tracking, enabling crash recovery and visibility.
 
+### Evidence Bundles (Audit Artifact)
+
+For High/Critical tier workflows, Forge generates an immutable `evidence-bundle.json` capturing:
+- Spec/approval metadata
+- AI usage flags (tool, model, scope)
+- Human reviewer ID and approval timestamp
+- Role separation verification
+- CI control outcomes
+- Finding lifecycle and closure evidence
+- Bundle hash for integrity
+
 ## Agent Pipeline
 
 ```

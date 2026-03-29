@@ -662,8 +662,123 @@ What's unfinished, blocked, or needs human input next session.
    - Regenerate `knowledge/patterns.md` from all active decisions in `decisions.json`
    - Regenerate `knowledge/chaos-catalog.md` from all active findings in `chaos-findings.json`
    - Update `knowledge/past-decisions.md` (backward compatibility — append new decisions as markdown)
-5. Final journal entry commit with session summary and links to all issues/PRs
-6. Notify parent session that workflow is complete
+5. **Generate Evidence Bundle** (see below)
+6. Final journal entry commit with session summary and links to all issues/PRs
+7. Notify parent session that workflow is complete
+
+## Evidence Bundle (Audit Artifact)
+
+For **High** and **Critical** tier workflows, generate an immutable evidence bundle at completion.
+For **Medium** tier, evidence bundle is optional but recommended.
+For **Low** tier, evidence bundle is not required.
+
+### Bundle Location
+
+```
+evidence/<feature-name>/evidence-bundle.json
+```
+
+### Bundle Generation
+
+Collect the following from workflow state and GitHub artifacts:
+
+```json
+{
+  "bundleId": "<uuid>",
+  "workflowId": "<feature-name>",
+  "timestamp": "<ISO-8601>",
+  "retentionClass": "standard|extended|permanent",
+  "riskTier": "low|medium|high|critical",
+  
+  "spec": {
+    "specRef": "spec/<feature>/openspec.md",
+    "specVersion": "<commit-sha>",
+    "requirementIds": ["#<issue>"],
+    "specApproval": {
+      "approvedBy": "<github-user>",
+      "approvalTimestamp": "<ISO-8601>",
+      "prNumber": <pr>
+    }
+  },
+  
+  "implementation": {
+    "prNumber": <pr>,
+    "branch": "feature/<feature>",
+    "commits": [
+      {"sha": "<sha>", "message": "<msg>", "aiAssisted": true}
+    ],
+    "aiUsage": {
+      "aiAssisted": true,
+      "aiTool": "codex",
+      "aiModel": "gpt-5.3-codex",
+      "aiScope": "full-implementation"
+    },
+    "implementerRole": "role:implementer",
+    "worklogRef": "worklog.md"
+  },
+  
+  "review": {
+    "reviewerRole": "role:pr-reviewer",
+    "humanReviewerId": "<github-user>",
+    "approvalTimestamp": "<ISO-8601>",
+    "approvalScope": "full|partial|conditional",
+    "reproductionMethod": "<for-critical-only>",
+    "reproductionNotes": "<for-critical-only>",
+    "reproductionPassFail": "pass|fail|not-applicable",
+    "roleSeparationCheck": true
+  },
+  
+  "findings": [
+    {
+      "findingIssueId": "#<issue>",
+      "severity": "high",
+      "category": "security",
+      "findingOwner": "<user>",
+      "status": "resolved",
+      "closureEvidenceRef": "<commit-sha>"
+    }
+  ],
+  
+  "controls": {
+    "ciControlResults": [
+      {"controlId": "lint", "outcome": "pass", "runId": "<run-id>"},
+      {"controlId": "sast", "outcome": "pass", "runId": "<run-id>"},
+      {"controlId": "license-scan", "outcome": "pass", "runId": "<run-id>"}
+    ],
+    "licenseScanReportRef": "<path-or-url>",
+    "sbomRef": "<path-or-url>",
+    "dependencyDiff": {
+      "added": ["pkg@version"],
+      "removed": [],
+      "updated": []
+    }
+  },
+  
+  "governance": {
+    "contextDataClass": "internal",
+    "redactionApplied": false,
+    "providerContractVersion": "2026-01"
+  },
+  
+  "artifactHash": "sha256:<hash-of-bundle-contents>"
+}
+```
+
+### Generating the Hash
+
+After populating all fields, compute SHA-256 of the bundle (excluding the `artifactHash` field) and set `artifactHash`.
+
+### Retention Classes
+
+| Class | Duration | When to Use |
+|-------|----------|-------------|
+| `standard` | 1 year | Most workflows |
+| `extended` | 5 years | Customer contract requirements, audit-sensitive |
+| `permanent` | Indefinite | Regulatory requirement, safety-critical |
+
+### Schema Reference
+
+See `docs/schemas/evidence-bundle.schema.json` for the full JSON Schema.
 
 ## Project Context
 

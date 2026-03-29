@@ -1,0 +1,261 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Evidence Bundle",
+  "description": "Audit-ready evidence bundle for a completed workflow, capturing human oversight, AI usage, and control outcomes.",
+  "type": "object",
+  "required": ["bundleId", "workflowId", "timestamp", "riskTier", "spec", "implementation", "review", "controls"],
+  "properties": {
+    "bundleId": {
+      "type": "string",
+      "description": "Unique bundle identifier (UUID or hash-based)",
+      "pattern": "^[a-f0-9-]{36}$|^sha256:[a-f0-9]{64}$"
+    },
+    "workflowId": {
+      "type": "string",
+      "description": "Forge workflow identifier (e.g., feature name or issue number)"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Bundle creation timestamp (ISO 8601)"
+    },
+    "retentionClass": {
+      "type": "string",
+      "enum": ["standard", "extended", "permanent"],
+      "default": "standard",
+      "description": "How long to retain this bundle"
+    },
+    "riskTier": {
+      "type": "string",
+      "enum": ["low", "medium", "high", "critical"],
+      "description": "Highest risk tier among code segments in this workflow"
+    },
+
+    "spec": {
+      "type": "object",
+      "description": "Specification evidence",
+      "required": ["specRef", "specVersion"],
+      "properties": {
+        "specRef": {
+          "type": "string",
+          "description": "Path or URL to OpenSpec document"
+        },
+        "specVersion": {
+          "type": "string",
+          "description": "Git commit SHA or version of the spec"
+        },
+        "requirementIds": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Linked requirement/issue IDs"
+        },
+        "specApproval": {
+          "type": "object",
+          "properties": {
+            "approvedBy": { "type": "string" },
+            "approvalTimestamp": { "type": "string", "format": "date-time" },
+            "prNumber": { "type": "integer" }
+          }
+        }
+      }
+    },
+
+    "implementation": {
+      "type": "object",
+      "description": "Implementation evidence",
+      "required": ["prNumber", "branch", "commits"],
+      "properties": {
+        "prNumber": {
+          "type": "integer",
+          "description": "GitHub PR number"
+        },
+        "branch": {
+          "type": "string",
+          "description": "Feature branch name"
+        },
+        "commits": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "sha": { "type": "string" },
+              "message": { "type": "string" },
+              "aiAssisted": { "type": "boolean" }
+            }
+          },
+          "description": "Commit list with AI-assisted flags"
+        },
+        "aiUsage": {
+          "type": "object",
+          "description": "AI tool usage metadata",
+          "properties": {
+            "aiAssisted": { "type": "boolean" },
+            "aiTool": { "type": "string", "description": "e.g., codex, claude-code" },
+            "aiModel": { "type": "string", "description": "e.g., gpt-5.3-codex" },
+            "aiScope": { "type": "string", "description": "What was AI-generated (full impl, partial, tests, etc.)" }
+          }
+        },
+        "implementerRole": {
+          "type": "string",
+          "description": "Role label of implementing agent"
+        },
+        "worklogRef": {
+          "type": "string",
+          "description": "Path to worklog.md if maintained"
+        }
+      }
+    },
+
+    "review": {
+      "type": "object",
+      "description": "Review evidence",
+      "required": ["reviewerRole"],
+      "properties": {
+        "reviewerRole": {
+          "type": "string",
+          "description": "Role label of reviewing agent/human"
+        },
+        "humanReviewerId": {
+          "type": "string",
+          "description": "GitHub username of human reviewer (if applicable)"
+        },
+        "approvalTimestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the review was approved"
+        },
+        "approvalScope": {
+          "type": "string",
+          "enum": ["full", "partial", "conditional"],
+          "description": "Scope of approval"
+        },
+        "reproductionMethod": {
+          "type": "string",
+          "description": "For Critical tier: how logic was independently verified"
+        },
+        "reproductionNotes": {
+          "type": "string",
+          "description": "Notes from independent reproduction"
+        },
+        "reproductionPassFail": {
+          "type": "string",
+          "enum": ["pass", "fail", "not-applicable"]
+        },
+        "roleSeparationCheck": {
+          "type": "boolean",
+          "description": "Confirms implementer != reviewer"
+        }
+      }
+    },
+
+    "findings": {
+      "type": "array",
+      "description": "Review findings and their resolution",
+      "items": {
+        "type": "object",
+        "properties": {
+          "findingIssueId": {
+            "type": "string",
+            "description": "GitHub issue number for the finding"
+          },
+          "severity": {
+            "type": "string",
+            "enum": ["low", "medium", "high", "critical"]
+          },
+          "category": {
+            "type": "string",
+            "enum": ["correctness", "security", "performance", "style", "license"]
+          },
+          "findingOwner": {
+            "type": "string",
+            "description": "Who is responsible for fixing"
+          },
+          "targetFixVersion": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["open", "in-progress", "resolved", "wont-fix"]
+          },
+          "closureEvidenceRef": {
+            "type": "string",
+            "description": "PR/commit that resolved the finding"
+          }
+        }
+      }
+    },
+
+    "controls": {
+      "type": "object",
+      "description": "CI and automated control outcomes",
+      "properties": {
+        "ciControlResults": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "controlId": { "type": "string", "description": "e.g., lint, sast, secrets, license-scan" },
+              "outcome": { "type": "string", "enum": ["pass", "fail", "skip", "warn"] },
+              "runId": { "type": "string" },
+              "artifactRef": { "type": "string" }
+            }
+          }
+        },
+        "licenseScanReportRef": {
+          "type": "string",
+          "description": "Path/URL to license scan report"
+        },
+        "sbomRef": {
+          "type": "string",
+          "description": "Path/URL to SBOM artifact"
+        },
+        "dependencyDiff": {
+          "type": "object",
+          "properties": {
+            "added": { "type": "array", "items": { "type": "string" } },
+            "removed": { "type": "array", "items": { "type": "string" } },
+            "updated": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "newDependencyApproval": {
+          "type": "string",
+          "description": "Reference to approval for new dependencies if required"
+        }
+      }
+    },
+
+    "governance": {
+      "type": "object",
+      "description": "Governance and compliance metadata",
+      "properties": {
+        "contextDataClass": {
+          "type": "string",
+          "enum": ["public", "internal", "confidential", "restricted"],
+          "description": "Classification of data in prompts/context"
+        },
+        "redactionApplied": {
+          "type": "boolean",
+          "description": "Whether sensitive data was redacted before AI processing"
+        },
+        "providerContractVersion": {
+          "type": "string",
+          "description": "Version/date of AI provider contract terms in effect"
+        },
+        "applicabilityDecisionRecord": {
+          "type": "string",
+          "description": "Reference to decision on which frameworks apply"
+        },
+        "legalBasisNote": {
+          "type": "string",
+          "description": "Brief note on legal/regulatory basis if applicable"
+        }
+      }
+    },
+
+    "artifactHash": {
+      "type": "string",
+      "description": "SHA-256 hash of the bundle contents for integrity verification",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    }
+  }
+}
