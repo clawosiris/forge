@@ -47,13 +47,17 @@ Secrets:
   The deploy script will reuse existing podman secrets if they exist.
   Only missing secrets will be prompted for.
 
+  The gateway token will be auto-generated if not provided and not in
+  the secrets store. The generated token is displayed (first 8 chars)
+  for reference.
+
   To force recreation of all secrets, use --recreate-secrets or set
   RECREATE_SECRETS=1 in the environment.
 
   Secrets read from the environment or prompted interactively:
-    ANTHROPIC_API_KEY
-    OPENAI_API_KEY
-    OPENCLAW_GATEWAY_TOKEN
+    ANTHROPIC_API_KEY     (required, prompted if missing)
+    OPENAI_API_KEY        (required, prompted if missing)
+    OPENCLAW_GATEWAY_TOKEN (auto-generated if not provided)
 USAGE
 }
 
@@ -95,6 +99,15 @@ prompt_secret() {
 secret_exists() {
   local secret_name="$1"
   podman secret inspect "${secret_name}" >/dev/null 2>&1
+}
+
+generate_token() {
+  # Generate a secure random token (32 bytes = 64 hex chars)
+  if command -v openssl >/dev/null 2>&1; then
+    openssl rand -hex 32
+  else
+    head -c 32 /dev/urandom | xxd -p | tr -d '\n'
+  fi
 }
 
 remove_existing_container() {
@@ -163,7 +176,15 @@ create_secrets() {
         secret_upsert openai-api-key "${OPENAI_API_KEY}"
         ;;
       gateway-token)
-        prompt_secret OPENCLAW_GATEWAY_TOKEN "Gateway token"
+        if [[ -n "${OPENCLAW_GATEWAY_TOKEN:-}" ]]; then
+          # Use provided token
+          :
+        else
+          # Generate a new token if not provided
+          log "Generating new gateway token"
+          OPENCLAW_GATEWAY_TOKEN="$(generate_token)"
+          ok "Generated gateway token (first 8 chars): ${OPENCLAW_GATEWAY_TOKEN:0:8}..."
+        fi
         secret_upsert gateway-token "${OPENCLAW_GATEWAY_TOKEN}"
         ;;
     esac
@@ -240,7 +261,13 @@ recreate_all_secrets() {
 
   prompt_secret ANTHROPIC_API_KEY "Anthropic API key"
   prompt_secret OPENAI_API_KEY "OpenAI API key"
-  prompt_secret OPENCLAW_GATEWAY_TOKEN "Gateway token"
+
+  # Generate gateway token if not provided
+  if [[ -z "${OPENCLAW_GATEWAY_TOKEN:-}" ]]; then
+    log "Generating new gateway token"
+    OPENCLAW_GATEWAY_TOKEN="$(generate_token)"
+    ok "Generated gateway token (first 8 chars): ${OPENCLAW_GATEWAY_TOKEN:0:8}..."
+  fi
 
   secret_upsert anthropic-api-key "${ANTHROPIC_API_KEY}"
   secret_upsert openai-api-key "${OPENAI_API_KEY}"
