@@ -280,11 +280,18 @@ exec({
 - Instruction to run tests before marking complete
 - Instruction to maintain a `worklog.md` in the working directory with: Mission, Progress Summary (✅/🔄/⬜), Current State, Key Learnings, Next Steps — updated continuously as work progresses
 
-### ACP Spawning — Claude Code for Code Review
+### ACP Spawning — Claude Code for Code Review (MANDATORY)
 
-The PR Reviewer runs as **Claude Code via ACP in review mode**. Claude Code reads the diff, checks it against the OpenSpec, and submits a GitHub PR review.
+The PR Reviewer **must** run as **Claude Code via ACP or CLI**. Never call Claude models directly for code review — always route through Claude Code to get the review harness with repo access and GitHub integration.
+
+**Why Claude Code, not raw Claude:**
+- Claude Code provides repo access, file reading, and GitHub CLI integration
+- Review mode enforces read-only constraints (no code modifications)
+- Structured review workflow with PR diff analysis
+- Different model family from Codex = complementary failure modes
 
 ```javascript
+// Via ACP (preferred for orchestration)
 sessions_spawn({
   runtime: "acp",
   agentId: "claude-code",
@@ -292,6 +299,13 @@ sessions_spawn({
   task: "<review prompt with OpenSpec + PR number + review instructions>",
   cwd: "{PROJECT_ROOT}",
   runTimeoutSeconds: 900
+})
+
+// Via CLI (alternative, e.g., from sandboxed agents)
+exec({
+  command: "claude --print '<review prompt with PR number and OpenSpec path>'",
+  cwd: "{PROJECT_ROOT}",
+  timeout: 900
 })
 ```
 
@@ -303,6 +317,7 @@ sessions_spawn({
 - Instruction to submit a GitHub PR review via `gh pr review` with either `--approve` or `--request-changes`
 - Instruction to use Fix-First heuristic: AUTO-FIX mechanical issues, ASK for ambiguous ones
 - Review criteria: correctness against OpenSpec, error handling, test coverage, idiomatic code, no scope creep beyond spec
+- **Explicit instruction: "You are in REVIEW MODE. Do NOT modify any files. Read and analyze only."**
 
 **Claude Code review mode constraints:**
 - The reviewer **must not modify code**. It reads and reviews only.
@@ -332,10 +347,12 @@ The roster uses **different model families** for generation vs review as a defen
 - The harness enforces workspace boundaries, commit conventions, and test requirements
 - Different training data from Claude means reviewers catch blind spots
 
-**Why Claude Code for PR/Code Review:**
+**Why Claude Code for PR/Code Review (MANDATORY):**
+- **Always route Claude through Claude Code CLI or ACP** — never call Claude models directly for review
+- Claude Code provides repo access, file reading, and GitHub CLI integration
+- Review mode enforces read-only constraints (no accidental code modifications)
 - Claude models excel at careful analysis, nuance, and finding edge cases
 - Different model family from generator = different failure modes = complementary coverage
-- Claude Code can read files, run tests, and interact with repos in review mode
 - Sonnet-4 balances thoroughness with cost/speed for review tasks
 
 **Why o3-mini for Chaos Agent (Ralph):**
