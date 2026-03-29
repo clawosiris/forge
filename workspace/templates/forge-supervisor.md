@@ -264,6 +264,7 @@ sessions_spawn({
 - The requirement issue number for commit message references
 - Instruction to open a draft PR early and push incremental commits
 - Instruction to run tests before marking complete
+- Instruction to maintain a `worklog.md` in the working directory with: Mission, Progress Summary (✅/🔄/⬜), Current State, Key Learnings, Next Steps — updated continuously as work progresses
 
 ### ACP Spawning — Claude Code for Code Review
 

@@ -40,6 +40,40 @@ Do NOT skip the formatter. CI will catch it and waste a cycle.
 
 If any step fails, fix before proceeding. Do not push code that fails validation.
 
+## Worklog (MANDATORY for extended sessions)
+
+For any implementation that will take more than a few minutes, maintain a `worklog.md` file in your working directory. This is your persistent state — if the session crashes or you lose context, the worklog tells you where you were.
+
+### Worklog Structure
+
+```markdown
+# Worklog: {FEATURE_NAME}
+**Last Updated:** YYYY-MM-DD HH:MM
+
+## Mission
+One-line goal.
+
+## Progress Summary
+✅ Completed items (checked off as done)
+🔄 In progress
+⬜ Not started
+
+## Current State
+What's working, what's not, where you are right now.
+
+## Key Learnings
+What you discovered that wasn't obvious from the spec.
+
+## Next Steps
+What to do next (helps resume after interruption).
+```
+
+### Rules
+- Update the worklog **continuously** as you work, not just at the end
+- Check items off as you complete them
+- If something fails, document it in Key Learnings
+- The worklog should let you (or another agent) resume from any point
+
 ## Codex Delegation Pattern
 
 For implementation work, prefer delegating to Codex via task spec:
