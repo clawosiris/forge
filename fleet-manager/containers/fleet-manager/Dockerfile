@@ -21,4 +21,5 @@ COPY --chown=node:node workspace/ .openclaw/workspace/
 # Podman socket path inside container
 ENV CONTAINER_HOST=unix:///run/podman/podman.sock
 
-ENTRYPOINT ["openclaw", "gateway", "start"]
+# Run gateway in foreground (no systemd in container)
+ENTRYPOINT ["openclaw", "gateway"]

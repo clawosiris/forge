@@ -21,4 +21,5 @@ WORKDIR /home/node
 COPY --chown=node:node config/openclaw.json5 .openclaw/config.yaml
 COPY --chown=node:node workspace/ .openclaw/workspace/
 
-ENTRYPOINT ["openclaw", "gateway", "start"]
+# Run gateway in foreground (no systemd in container)
+ENTRYPOINT ["openclaw", "gateway"]
