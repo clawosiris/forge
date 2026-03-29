@@ -72,3 +72,19 @@ ansible-playbook -i inventory/hosts.yml deploy.yml --ask-vault-pass
 ```
 
 More detail is in [`docs/fleet-manager.md`](docs/fleet-manager.md) and [`ansible/README.md`](ansible/README.md).
+
+## Agent Pipeline
+
+Forge orchestrates a structured pipeline of specialized AI agents:
+
+```
+Requirement → Analyst → Spec Review → [Human Gate] → Implementer (Codex)
+    → CI Monitor → Chaos/Security (parallel) → PR Review (Claude) → [Human Gate] → Release
+```
+
+See [`docs/agent-pipeline.md`](docs/agent-pipeline.md) for the full pipeline documentation including:
+- Agent roles and responsibilities
+- Runtime configurations (subagent vs ACP)
+- Workflow state machine
+- Knowledge injection patterns
+- Circuit breakers and escalation
