@@ -13,6 +13,11 @@ TEMPLATE_FILE="${SKILL_DIR}/templates/forge-instance.json5"
 INSTANCE_DIR="${STATE_DIR}/instances"
 ARCHIVE_DIR="${STATE_DIR}/archives"
 
+# For sibling container mounts via host podman socket
+STATE_VOLUME="${FLEET_STATE_VOLUME:-fleet-manager-state}"
+# Mount path inside forge instances (using node user)
+STATE_MOUNT_PATH="${FLEET_STATE_MOUNT_PATH:-/home/node/.fleet-manager}"
+
 PORT_START="${FLEET_PORT_START:-18800}"
 PORT_END="${FLEET_PORT_END:-18899}"
 PODMAN_NETWORK="${FLEET_PODMAN_NETWORK:-forge-fleet}"
@@ -226,15 +231,19 @@ main() {
   log "Seeding workspace volume ${workspace_volume}"
   seed_workspace_volume "${workspace_volume}"
 
+  # Config path inside the state volume (relative to mount point)
+  local config_subpath="instances/${name}/openclaw.json5"
+
   log "Starting container ${container_name}"
   podman run -d \
     --name "${container_name}" \
     --hostname "${container_name}" \
     --network "${PODMAN_NETWORK}" \
     -p "127.0.0.1:${port}:${port}" \
-    -v "${workspace_volume}:/home/openclaw/.openclaw/workspace:Z" \
-    -v "${data_volume}:/home/openclaw/.local/share/openclaw:Z" \
-    -v "${config_path}:/home/openclaw/.openclaw/openclaw.json5:Z,ro" \
+    -v "${workspace_volume}:/home/node/.openclaw/workspace:Z" \
+    -v "${data_volume}:/home/node/.local/share/openclaw:Z" \
+    -v "${STATE_VOLUME}:${STATE_MOUNT_PATH}:Z" \
+    -e "OPENCLAW_CONFIG=${STATE_MOUNT_PATH}/${config_subpath}" \
     --secret "${SECRET_ANTHROPIC},target=ANTHROPIC_API_KEY" \
     --secret "${SECRET_OPENAI},target=OPENAI_API_KEY" \
     --secret "${SECRET_GATEWAY},target=GATEWAY_AUTH_TOKEN" \
