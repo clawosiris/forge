@@ -18,6 +18,11 @@ STATE_VOLUME="${FLEET_STATE_VOLUME:-fleet-manager-state}"
 # Mount path inside forge instances (using node user)
 STATE_MOUNT_PATH="${FLEET_STATE_MOUNT_PATH:-/home/node/.fleet-manager}"
 
+# Host quadlet directory (mounted into fleet-manager container)
+HOST_QUADLET_DIR="${FLEET_HOST_QUADLET_DIR:-/host-quadlets}"
+# Host UID for systemctl commands
+HOST_UID="${FLEET_HOST_UID:-$(id -u)}"
+
 PORT_START="${FLEET_PORT_START:-18800}"
 PORT_END="${FLEET_PORT_END:-18899}"
 PODMAN_NETWORK="${FLEET_PODMAN_NETWORK:-forge-fleet}"
@@ -233,21 +238,58 @@ main() {
 
   # Config path inside the state volume (relative to mount point)
   local config_subpath="instances/${name}/openclaw.json5"
+  local quadlet_file="${HOST_QUADLET_DIR}/${container_name}.container"
+  local service_name="${container_name}.service"
 
-  log "Starting container ${container_name}"
-  podman run -d \
-    --name "${container_name}" \
-    --hostname "${container_name}" \
-    --network "${PODMAN_NETWORK}" \
-    -p "127.0.0.1:${port}:${port}" \
-    -v "${workspace_volume}:/home/node/.openclaw/workspace:Z" \
-    -v "${data_volume}:/home/node/.local/share/openclaw:Z" \
-    -v "${STATE_VOLUME}:${STATE_MOUNT_PATH}:Z" \
-    -e "OPENCLAW_CONFIG=${STATE_MOUNT_PATH}/${config_subpath}" \
-    --secret "${SECRET_ANTHROPIC},target=ANTHROPIC_API_KEY" \
-    --secret "${SECRET_OPENAI},target=OPENAI_API_KEY" \
-    --secret "${SECRET_GATEWAY},target=GATEWAY_AUTH_TOKEN" \
-    "${FORGE_INSTANCE_IMAGE}" >/dev/null
+  log "Generating quadlet: ${quadlet_file}"
+  cat > "${quadlet_file}" <<EOF
+[Unit]
+Description=Forge Instance: ${name}
+After=network-online.target
+
+[Container]
+ContainerName=${container_name}
+HostName=${container_name}
+Image=${FORGE_INSTANCE_IMAGE}
+Network=${PODMAN_NETWORK}
+PublishPort=127.0.0.1:${port}:${port}
+
+Environment=OPENCLAW_CONFIG=${STATE_MOUNT_PATH}/${config_subpath}
+
+Volume=${workspace_volume}:/home/node/.openclaw/workspace:Z
+Volume=${data_volume}:/home/node/.local/share/openclaw:Z
+Volume=${STATE_VOLUME}:${STATE_MOUNT_PATH}:Z
+
+Secret=${SECRET_ANTHROPIC},type=env,target=ANTHROPIC_API_KEY
+Secret=${SECRET_OPENAI},type=env,target=OPENAI_API_KEY
+Secret=${SECRET_GATEWAY},type=env,target=GATEWAY_AUTH_TOKEN
+
+[Service]
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=default.target
+EOF
+
+  log "Reloading systemd user units"
+  systemctl --user daemon-reload
+
+  log "Starting service ${service_name}"
+  systemctl --user start "${service_name}"
+
+  # Verify startup
+  sleep 2
+  local status
+  status="$(systemctl --user is-active "${service_name}" 2>/dev/null || true)"
+  if [[ "${status}" != "active" ]]; then
+    warn "Service ${service_name} failed to start (status: ${status})"
+    echo "--- systemd service status ---"
+    systemctl --user status "${service_name}" --no-pager || true
+    echo "--- container logs ---"
+    podman logs --tail 50 "${container_name}" 2>&1 || true
+    fail "Forge instance ${name} failed to start"
+  fi
 
   record_instance "$name" "$container_name" "$port" "$config_path" "$workspace_volume" "$data_volume" "$now" "$next_port"
 

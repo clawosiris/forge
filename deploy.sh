@@ -236,11 +236,15 @@ PublishPort=127.0.0.1:${FLEET_MANAGER_PORT}:${FLEET_MANAGER_PORT}
 Environment=FLEET_REPO_ROOT=${FLEET_MANAGER_REPO_MOUNT}
 Environment=FLEET_HOST_REPO_ROOT=${SCRIPT_DIR}
 Environment=FLEET_STATE_VOLUME=${FLEET_MANAGER_STATE_VOLUME}
+Environment=FLEET_HOST_UID=$(id -u)
+Environment=DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$(id -u)/bus
 
 Volume=${PODMAN_SOCKET}:/run/podman/podman.sock:Z
 Volume=${SCRIPT_DIR}:${FLEET_MANAGER_REPO_MOUNT}:ro,Z
 Volume=${SCRIPT_DIR}/fleet-manager/containers/fleet-manager/workspace:${FLEET_MANAGER_REPO_MOUNT}/workspace:Z
 Volume=${FLEET_MANAGER_STATE_VOLUME}:/home/node/.fleet-manager:Z
+Volume=${HOME}/.config/containers/systemd:/host-quadlets:Z
+Volume=/run/user/$(id -u)/bus:/run/user/$(id -u)/bus:ro
 
 Secret=anthropic-api-key,type=env,target=ANTHROPIC_API_KEY
 Secret=openai-api-key,type=env,target=OPENAI_API_KEY

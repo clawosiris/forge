@@ -10,6 +10,9 @@ SCHEMA_FILE="${SKILL_DIR}/schemas/instances.json"
 ARCHIVE_DIR="${STATE_DIR}/archives"
 FORGE_INSTANCE_IMAGE="${FORGE_INSTANCE_IMAGE:-localhost/openclaw-forge:latest}"
 
+# Host quadlet directory (mounted into fleet-manager container)
+HOST_QUADLET_DIR="${FLEET_HOST_QUADLET_DIR:-/host-quadlets}"
+
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -70,6 +73,23 @@ archive_volume() {
 
 remove_container() {
   local container_name="$1"
+  local service_name="${container_name}.service"
+  local quadlet_file="${HOST_QUADLET_DIR}/${container_name}.container"
+
+  # Stop via systemd if service exists
+  if systemctl --user is-active "${service_name}" >/dev/null 2>&1; then
+    log "Stopping service ${service_name}"
+    systemctl --user stop "${service_name}" || warn "Could not stop ${service_name}"
+  fi
+
+  # Remove quadlet file
+  if [[ -f "${quadlet_file}" ]]; then
+    log "Removing quadlet ${quadlet_file}"
+    rm -f "${quadlet_file}"
+    systemctl --user daemon-reload
+  fi
+
+  # Clean up container if it still exists
   if podman container exists "${container_name}"; then
     podman stop -t 30 "${container_name}" >/dev/null 2>&1 || warn "Could not stop ${container_name}"
     podman rm -f "${container_name}" >/dev/null 2>&1 || warn "Could not remove ${container_name}"
