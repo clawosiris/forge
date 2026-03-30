@@ -8,6 +8,7 @@ USER root
 RUN apt-get update && apt-get install -y --no-install-recommends \
     podman \
     jq \
+    iproute2 \
     && rm -rf /var/lib/apt/lists/* \
     && usermod -aG root node
 
