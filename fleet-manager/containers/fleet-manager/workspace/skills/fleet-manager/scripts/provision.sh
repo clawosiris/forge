@@ -20,8 +20,9 @@ STATE_MOUNT_PATH="${FLEET_STATE_MOUNT_PATH:-/home/node/.fleet-manager}"
 
 # Host quadlet directory (mounted into fleet-manager container)
 HOST_QUADLET_DIR="${FLEET_HOST_QUADLET_DIR:-/host-quadlets}"
-# Host UID for systemctl commands
-HOST_UID="${FLEET_HOST_UID:-$(id -u)}"
+
+# systemctl --user communicates via DBUS_SESSION_BUS_ADDRESS which is set
+# by deploy.sh to point to /run/host_user_systemd/bus (the mounted host socket)
 
 PORT_START="${FLEET_PORT_START:-18800}"
 PORT_END="${FLEET_PORT_END:-18899}"

@@ -4,11 +4,12 @@ FROM ghcr.io/openclaw/openclaw:main-slim
 
 USER root
 
-# Add Podman CLI for container orchestration
+# Add Podman CLI and systemd client for container orchestration
 RUN apt-get update && apt-get install -y --no-install-recommends \
     podman \
     jq \
     iproute2 \
+    systemd \
     && rm -rf /var/lib/apt/lists/* \
     && usermod -aG root node
 
