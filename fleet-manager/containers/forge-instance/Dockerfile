@@ -11,7 +11,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 \
     jq \
     && npm install -g @anthropic-ai/claude-code @openai/codex \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && usermod -aG root node
 
 USER node
 WORKDIR /home/node

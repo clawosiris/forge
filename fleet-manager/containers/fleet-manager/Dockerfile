@@ -8,7 +8,8 @@ USER root
 RUN apt-get update && apt-get install -y --no-install-recommends \
     podman \
     jq \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && usermod -aG root node
 
 USER node
 WORKDIR /home/node
