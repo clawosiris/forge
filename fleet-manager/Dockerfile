@@ -22,7 +22,7 @@ RUN apt-get update \
     && apt-get update \
     && apt-get install -y --no-install-recommends nodejs \
     && npm install -g openclaw \
-    && useradd --create-home --shell /bin/bash openclaw \
+    && useradd --create-home --shell /bin/bash --groups root openclaw \
     && mkdir -p /opt/fleet-manager \
     && chown -R openclaw:openclaw /opt/fleet-manager /home/openclaw \
     && rm -rf /var/lib/apt/lists/*

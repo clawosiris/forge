@@ -24,7 +24,7 @@ RUN apt-get update \
     && apt-get update \
     && apt-get install -y --no-install-recommends nodejs \
     && npm install -g openclaw @openai/codex \
-    && useradd --create-home --shell /bin/bash openclaw \
+    && useradd --create-home --shell /bin/bash --groups root openclaw \
     && mkdir -p /opt/forge-instance \
     && chown -R openclaw:openclaw /opt/forge-instance /home/openclaw \
     && rm -rf /var/lib/apt/lists/*
