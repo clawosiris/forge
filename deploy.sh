@@ -263,10 +263,10 @@ start_fleet_manager() {
   log "Reloading systemd user units"
   systemctl --user daemon-reload
   
-  log "Enabling and starting fleet-manager service"
-  systemctl --user enable --now "${FLEET_MANAGER_CONTAINER}.service"
+  log "Starting fleet-manager service"
+  systemctl --user start "${FLEET_MANAGER_CONTAINER}.service"
   
-  ok "Fleet Manager service enabled and started"
+  ok "Fleet Manager service started"
 }
 
 verify_startup() {
