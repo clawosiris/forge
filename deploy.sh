@@ -222,6 +222,7 @@ start_fleet_manager() {
     --network "${FLEET_MANAGER_NETWORK}" \
     -p "127.0.0.1:${FLEET_MANAGER_PORT}:${FLEET_MANAGER_PORT}" \
     -e "FLEET_REPO_ROOT=${FLEET_MANAGER_REPO_MOUNT}" \
+    -e "FLEET_HOST_REPO_ROOT=${SCRIPT_DIR}" \
     -v "${PODMAN_SOCKET}:/run/podman/podman.sock:Z" \
     -v "${SCRIPT_DIR}:${FLEET_MANAGER_REPO_MOUNT}:ro,Z" \
     -v "${SCRIPT_DIR}/fleet-manager/containers/fleet-manager/workspace:${FLEET_MANAGER_REPO_MOUNT}/workspace:Z" \

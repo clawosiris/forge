@@ -4,6 +4,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SKILL_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 REPO_ROOT="${FLEET_REPO_ROOT:-$(cd "${SKILL_DIR}/../.." && pwd)}"
+HOST_REPO_ROOT="${FLEET_HOST_REPO_ROOT:-${REPO_ROOT}}"
 
 STATE_DIR="${FLEET_STATE_DIR:-$HOME/.fleet-manager}"
 STATE_FILE="${FLEET_STATE_FILE:-${STATE_DIR}/instances.json}"
@@ -132,9 +133,10 @@ render_config() {
 
 seed_workspace_volume() {
   local volume_name="$1"
+  # Use HOST_REPO_ROOT for podman volume mounts (host paths required)
   podman run --rm \
     -v "${volume_name}:/dest:Z" \
-    -v "${REPO_ROOT}/workspace:/src:ro,Z" \
+    -v "${HOST_REPO_ROOT}/workspace:/src:ro,Z" \
     --entrypoint /bin/bash \
     "${FORGE_INSTANCE_IMAGE}" \
     -lc 'shopt -s dotglob nullglob; cp -a /src/. /dest/'
