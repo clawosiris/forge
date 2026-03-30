@@ -21,8 +21,8 @@ STATE_MOUNT_PATH="${FLEET_STATE_MOUNT_PATH:-/home/node/.fleet-manager}"
 # Host quadlet directory (mounted into fleet-manager container)
 HOST_QUADLET_DIR="${FLEET_HOST_QUADLET_DIR:-/host-quadlets}"
 
-# systemctl --user communicates via DBUS_SESSION_BUS_ADDRESS which is set
-# by deploy.sh to point to /run/host_user_systemd/bus (the mounted host socket)
+# Use host-spawn to run systemctl on the host
+HOSTCTL="host-spawn systemctl --user"
 
 PORT_START="${FLEET_PORT_START:-18800}"
 PORT_END="${FLEET_PORT_END:-18899}"
@@ -274,19 +274,19 @@ WantedBy=default.target
 EOF
 
   log "Reloading systemd user units"
-  systemctl --user daemon-reload
+  ${HOSTCTL} daemon-reload
 
   log "Starting service ${service_name}"
-  systemctl --user start "${service_name}"
+  ${HOSTCTL} start "${service_name}"
 
   # Verify startup
   sleep 2
   local status
-  status="$(systemctl --user is-active "${service_name}" 2>/dev/null || true)"
+  status="$(${HOSTCTL} is-active "${service_name}" 2>/dev/null || true)"
   if [[ "${status}" != "active" ]]; then
     warn "Service ${service_name} failed to start (status: ${status})"
     echo "--- systemd service status ---"
-    systemctl --user status "${service_name}" --no-pager || true
+    ${HOSTCTL} status "${service_name}" --no-pager || true
     echo "--- container logs ---"
     podman logs --tail 50 "${container_name}" 2>&1 || true
     fail "Forge instance ${name} failed to start"

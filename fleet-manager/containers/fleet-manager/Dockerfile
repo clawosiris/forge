@@ -4,14 +4,17 @@ FROM ghcr.io/openclaw/openclaw:main-slim
 
 USER root
 
-# Add Podman CLI and systemd client for container orchestration
+# Add Podman CLI and host-spawn for container orchestration
 RUN apt-get update && apt-get install -y --no-install-recommends \
     podman \
     jq \
     iproute2 \
-    systemd \
+    curl \
     && rm -rf /var/lib/apt/lists/* \
-    && usermod -aG root node
+    && usermod -aG root node \
+    && curl -fsSL -o /usr/local/bin/host-spawn \
+       https://github.com/1player/host-spawn/releases/download/v1.6.0/host-spawn-x86_64 \
+    && chmod +x /usr/local/bin/host-spawn
 
 USER node
 WORKDIR /home/node

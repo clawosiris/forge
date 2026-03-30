@@ -13,6 +13,9 @@ FORGE_INSTANCE_IMAGE="${FORGE_INSTANCE_IMAGE:-localhost/openclaw-forge:latest}"
 # Host quadlet directory (mounted into fleet-manager container)
 HOST_QUADLET_DIR="${FLEET_HOST_QUADLET_DIR:-/host-quadlets}"
 
+# Use host-spawn to run systemctl on the host
+HOSTCTL="host-spawn systemctl --user"
+
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -77,16 +80,16 @@ remove_container() {
   local quadlet_file="${HOST_QUADLET_DIR}/${container_name}.container"
 
   # Stop via systemd if service exists
-  if systemctl --user is-active "${service_name}" >/dev/null 2>&1; then
+  if ${HOSTCTL} is-active "${service_name}" >/dev/null 2>&1; then
     log "Stopping service ${service_name}"
-    systemctl --user stop "${service_name}" || warn "Could not stop ${service_name}"
+    ${HOSTCTL} stop "${service_name}" || warn "Could not stop ${service_name}"
   fi
 
   # Remove quadlet file
   if [[ -f "${quadlet_file}" ]]; then
     log "Removing quadlet ${quadlet_file}"
     rm -f "${quadlet_file}"
-    systemctl --user daemon-reload
+    ${HOSTCTL} daemon-reload
   fi
 
   # Clean up container if it still exists
