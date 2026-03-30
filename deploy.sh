@@ -214,38 +214,74 @@ ensure_network() {
   fi
 }
 
-start_fleet_manager() {
-  log "Starting fleet-manager container"
-  podman run -d \
-    --name "${FLEET_MANAGER_CONTAINER}" \
-    --hostname "${FLEET_MANAGER_CONTAINER}" \
-    --network "${FLEET_MANAGER_NETWORK}" \
-    -p "127.0.0.1:${FLEET_MANAGER_PORT}:${FLEET_MANAGER_PORT}" \
-    -e "FLEET_REPO_ROOT=${FLEET_MANAGER_REPO_MOUNT}" \
-    -e "FLEET_HOST_REPO_ROOT=${SCRIPT_DIR}" \
-    -e "FLEET_STATE_VOLUME=${FLEET_MANAGER_STATE_VOLUME}" \
-    -v "${PODMAN_SOCKET}:/run/podman/podman.sock:Z" \
-    -v "${SCRIPT_DIR}:${FLEET_MANAGER_REPO_MOUNT}:ro,Z" \
-    -v "${SCRIPT_DIR}/fleet-manager/containers/fleet-manager/workspace:${FLEET_MANAGER_REPO_MOUNT}/workspace:Z" \
-    -v "${FLEET_MANAGER_STATE_VOLUME}:/home/openclaw/.fleet-manager:Z" \
-    --secret anthropic-api-key,type=env,target=ANTHROPIC_API_KEY \
-    --secret openai-api-key,type=env,target=OPENAI_API_KEY \
-    --secret gateway-token,type=env,target=GATEWAY_AUTH_TOKEN \
-    "${FLEET_MANAGER_IMAGE}" >/dev/null
+generate_quadlet() {
+  local quadlet_dir="${HOME}/.config/containers/systemd"
+  local quadlet_file="${quadlet_dir}/${FLEET_MANAGER_CONTAINER}.container"
+  
+  mkdir -p "${quadlet_dir}"
+  
+  log "Generating quadlet: ${quadlet_file}"
+  cat > "${quadlet_file}" <<EOF
+[Unit]
+Description=Forge Fleet Manager
+After=network-online.target
 
-  ok "Fleet Manager started"
+[Container]
+ContainerName=${FLEET_MANAGER_CONTAINER}
+Hostname=${FLEET_MANAGER_CONTAINER}
+Image=${FLEET_MANAGER_IMAGE}
+Network=${FLEET_MANAGER_NETWORK}
+PublishPort=127.0.0.1:${FLEET_MANAGER_PORT}:${FLEET_MANAGER_PORT}
+
+Environment=FLEET_REPO_ROOT=${FLEET_MANAGER_REPO_MOUNT}
+Environment=FLEET_HOST_REPO_ROOT=${SCRIPT_DIR}
+Environment=FLEET_STATE_VOLUME=${FLEET_MANAGER_STATE_VOLUME}
+
+Volume=${PODMAN_SOCKET}:/run/podman/podman.sock:Z
+Volume=${SCRIPT_DIR}:${FLEET_MANAGER_REPO_MOUNT}:ro,Z
+Volume=${SCRIPT_DIR}/fleet-manager/containers/fleet-manager/workspace:${FLEET_MANAGER_REPO_MOUNT}/workspace:Z
+Volume=${FLEET_MANAGER_STATE_VOLUME}:/home/node/.fleet-manager:Z
+
+Secret=anthropic-api-key,type=env,target=ANTHROPIC_API_KEY
+Secret=openai-api-key,type=env,target=OPENAI_API_KEY
+Secret=gateway-token,type=env,target=GATEWAY_AUTH_TOKEN
+
+[Service]
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=default.target
+EOF
+
+  ok "Generated quadlet: ${quadlet_file}"
+}
+
+start_fleet_manager() {
+  generate_quadlet
+  
+  log "Reloading systemd user units"
+  systemctl --user daemon-reload
+  
+  log "Enabling and starting fleet-manager service"
+  systemctl --user enable --now "${FLEET_MANAGER_CONTAINER}.service"
+  
+  ok "Fleet Manager service enabled and started"
 }
 
 verify_startup() {
   log "Waiting ${STARTUP_GRACE_SECONDS}s for startup health check"
   sleep "${STARTUP_GRACE_SECONDS}"
 
-  local status
-  status="$(podman inspect --format '{{.State.Status}}' "${FLEET_MANAGER_CONTAINER}" 2>/dev/null || true)"
+  local service_status container_status
+  service_status="$(systemctl --user is-active "${FLEET_MANAGER_CONTAINER}.service" 2>/dev/null || true)"
+  container_status="$(podman inspect --format '{{.State.Status}}' "${FLEET_MANAGER_CONTAINER}" 2>/dev/null || true)"
 
-  if [[ "${status}" != "running" ]]; then
-    warn "Container ${FLEET_MANAGER_CONTAINER} failed startup check (status: ${status:-unknown})"
-    echo "--- recent container logs ---"
+  if [[ "${service_status}" != "active" ]] || [[ "${container_status}" != "running" ]]; then
+    warn "Fleet Manager failed startup check (service: ${service_status:-unknown}, container: ${container_status:-unknown})"
+    echo "--- systemd service status ---"
+    systemctl --user status "${FLEET_MANAGER_CONTAINER}.service" --no-pager || true
+    echo "--- container logs ---"
     podman logs --tail 80 "${FLEET_MANAGER_CONTAINER}" 2>&1 || true
     fail "Fleet Manager is not running after startup grace period"
   fi
