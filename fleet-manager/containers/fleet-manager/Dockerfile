@@ -16,6 +16,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
        https://github.com/1player/host-spawn/releases/download/v1.6.0/host-spawn-x86_64 \
     && chmod +x /usr/local/bin/host-spawn
 
+# Install Lobster
+RUN npm install -g @openclaw/lobster
+
 USER node
 WORKDIR /home/node
 
