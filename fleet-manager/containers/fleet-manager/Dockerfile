@@ -19,18 +19,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Install Lobster
 RUN npm install -g @openclaw/lobster
 
-COPY fleet-manager/flow/ /app/flow/
-COPY fleet-manager/webhook/ /app/webhook/
-COPY fleet-manager/pipelines/ /app/pipelines/
-COPY --chmod=755 fleet-manager/containers/fleet-manager/entrypoint.sh /app/entrypoint.sh
+COPY flow/ /app/flow/
+COPY webhook/ /app/webhook/
+COPY pipelines/ /app/pipelines/
+COPY --chmod=755 entrypoint.sh /app/entrypoint.sh
 
 USER node
 WORKDIR /home/node
 
 # Copy Fleet Manager config and workspace
 # OpenClaw reads config from ~/.openclaw/openclaw.json
-COPY --chown=node:node fleet-manager/config/openclaw.json5 .openclaw/openclaw.json
-COPY --chown=node:node fleet-manager/containers/fleet-manager/workspace/ .openclaw/workspace/
+COPY --chown=node:node config/openclaw.json5 .openclaw/openclaw.json
+COPY --chown=node:node workspace/ .openclaw/workspace/
 
 # Podman socket path inside container
 ENV CONTAINER_HOST=unix:///run/podman/podman.sock

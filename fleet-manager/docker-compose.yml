@@ -10,8 +10,12 @@ services:
       CONTAINER_HOST: unix:///run/podman/podman.sock
       FLEET_MANAGER_HOST_STATE_DIR: ${FLEET_MANAGER_HOST_STATE_DIR:-${HOME}/.fleet-manager}
       OPENCLAW_CONFIG: /home/openclaw/.openclaw/openclaw.json5
+      WEBHOOK_SECRET: ${WEBHOOK_SECRET:-}
+      WEBHOOK_PORT: "9000"
+      FLOWS_DIR: /home/openclaw/.openclaw/flows/active
     ports:
       - "18799:18799"
+      - "9000:9000"
     volumes:
       - /run/user/1000/podman/podman.sock:/run/podman/podman.sock
       - ${HOME}/.fleet-manager:/home/openclaw/.openclaw:Z
