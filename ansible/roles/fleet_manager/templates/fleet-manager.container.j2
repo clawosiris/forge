@@ -14,7 +14,11 @@ Volume={{ fleet_manager_state_volume }}:/home/openclaw/.fleet-manager
 Secret=anthropic-api-key,target=ANTHROPIC_API_KEY
 Secret=openai-api-key,target=OPENAI_API_KEY
 Secret=gateway-token,target=GATEWAY_AUTH_TOKEN
+Secret=webhook-secret,target=WEBHOOK_SECRET
 Environment=FLEET_REPO_ROOT={{ fleet_manager_repo_root }}
+Environment=WEBHOOK_PORT={{ fleet_manager_webhook_port | default('9000') }}
+Environment=FLOWS_DIR=/home/openclaw/.openclaw/flows/active
+PublishPort=127.0.0.1:{{ fleet_manager_webhook_port | default('9000') }}:{{ fleet_manager_webhook_port | default('9000') }}
 
 [Service]
 Restart=always

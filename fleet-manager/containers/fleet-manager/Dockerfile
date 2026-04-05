@@ -19,6 +19,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Install Lobster
 RUN npm install -g @openclaw/lobster
 
+COPY flow/ /app/flow/
+COPY webhook/ /app/webhook/
+COPY pipelines/ /app/pipelines/
+COPY --chmod=755 entrypoint.sh /app/entrypoint.sh
+
 USER node
 WORKDIR /home/node
 
@@ -30,5 +35,4 @@ COPY --chown=node:node workspace/ .openclaw/workspace/
 # Podman socket path inside container
 ENV CONTAINER_HOST=unix:///run/podman/podman.sock
 
-# Run gateway in foreground (no systemd in container)
-ENTRYPOINT ["openclaw", "gateway"]
+ENTRYPOINT ["bash", "/app/entrypoint.sh"]
